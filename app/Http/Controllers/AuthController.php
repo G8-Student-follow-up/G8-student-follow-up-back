@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,13 +11,16 @@ use Illuminate\Validation\ValidationException;
 // app/Http/Controllers/AuthController.php
 class AuthController extends Controller
 {
-    public function register(Request $request): \Illuminate\Http\JsonResponse
+    public function register(RegisterRequest $request): \Illuminate\Http\JsonResponse
     {
+        $data = $request->validated();
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => $data['password'],
+            'confirm_password' => $data['confirm_password'],
+            'role' => $data['role'] ?? 'trainer',
         ]);
 
         return response()->json([
