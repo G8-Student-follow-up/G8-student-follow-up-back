@@ -6,6 +6,9 @@ use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request): \Illuminate\Http\JsonResponse
@@ -51,5 +54,57 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged Successfully'], 200);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );
+
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json([
+                'message' => 'Password reset link sent successfully'
+            ], 200)
+            : response()->json([
+                'message' => 'Unable to send reset link'
+            ], 400);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only(
+                'email',
+                'password',
+                'password_confirmation',
+                'token'
+            ),
+            function ($user) use ($request) {
+
+                $user->update([
+                    'password' => Hash::make($request->password),
+                    'remember_token' => Str::random(60),
+                ]);
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json([
+                'message' => 'Password reset successfully'
+            ], 200)
+            : response()->json([
+                'message' => 'Invalid token or email'
+            ], 400);
     }
 }
