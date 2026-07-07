@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use App\Mail\ResetPasswordMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -62,17 +64,23 @@ class AuthController extends Controller
             'email' => 'required|email|exists:users,email',
         ]);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
+        $user = User::where('email', $request->email)->first();
+
+        $token = Password::createToken($user);
+
+        $url = env('FRONTEND_URL')
+            . '/reset-password?token='
+            . $token
+            . '&email='
+            . urlencode($user->email);
+
+        Mail::to($user->email)->send(
+            new ResetPasswordMail($user, $url)
         );
 
-        return $status === Password::RESET_LINK_SENT
-            ? response()->json([
-                'message' => 'Password reset link sent successfully'
-            ], 200)
-            : response()->json([
-                'message' => 'Unable to send reset link'
-            ], 400);
+        return response()->json([
+            'message' => 'Reset password email sent successfully.'
+        ]);
     }
 
     public function resetPassword(Request $request)
