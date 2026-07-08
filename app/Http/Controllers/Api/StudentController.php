@@ -10,6 +10,7 @@ use OpenApi\Attributes as OA;
 
 class StudentController extends Controller
 {
+    // swager
     #[OA\Get(
         path: "/api/students",
         summary: "Get all students",
