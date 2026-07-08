@@ -5,9 +5,9 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 
-class EnsureRole
+class TrainerMiddleware
 {
-    public function handle(Request $request, Closure $next, string ...$roles)
+    public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
 
@@ -15,10 +15,9 @@ class EnsureRole
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        if (!in_array($user->role, $roles)) {
+        if (!$user->isTrainer()) {
             return response()->json([
-                'message' => 'Forbidden. You do not have the required role.',
-                'required_roles' => $roles,
+                'message' => 'Forbidden. Trainer access required.',
                 'your_role' => $user->role,
             ], 403);
         }

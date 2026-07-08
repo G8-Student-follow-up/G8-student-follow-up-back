@@ -44,4 +44,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Comment::class);
     }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isTrainer(): bool
+    {
+        return $this->role === 'trainer';
+    }
 }
