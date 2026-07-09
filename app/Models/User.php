@@ -22,6 +22,9 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = [
+        'avatar_url'
+    ];
     protected function casts(): array
     {
         return [
@@ -30,6 +33,13 @@ class User extends Authenticatable
         ];
     }
 
+    public function getAvatarUrlAttribute(){
+        if (!$this -> avatar){
+            return null;
+        }
+
+        return asset('storage/' . $this -> avatar);
+    }
     public function workspaces()
     {
         return $this->hasMany(Workspace::class, 'created_by');
