@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
-use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class UserController extends BaseController
 
@@ -14,6 +13,10 @@ class UserController extends BaseController
     /**
      * Display a listing of the resource.
      */
+
+    public function __construct(
+        private UserService $userService
+    ) {}
     public function index()
     {
         $users = User::paginate(10);
@@ -72,15 +75,10 @@ class UserController extends BaseController
             'avatar' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        if ($request->hasFile('avatar')) {
-            if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
-            }
-
-            $validated['avatar'] = $request->file('avatar')->store('avatar', 'public');
-        }
-
-        $user->update($validated);
+        $user = $this->userService->update(
+            $user,
+            $validated
+        );
 
         return $this->successResponse(
             $user,
@@ -95,18 +93,20 @@ class UserController extends BaseController
     {
         $user = User::find($id);
 
-        if(!$user){
+        if (!$user) {
             return $this->errorReponse(
                 'User not found',
                 404
             );
         }
 
-        $user->delete();
 
-        return $this -> successResponse(
-            'User deleted successfully',
-            200
+        $this->userService->delete($user);
+
+
+        return $this->successResponse(
+            null,
+            'User deleted successfully'
         );
     }
 }
