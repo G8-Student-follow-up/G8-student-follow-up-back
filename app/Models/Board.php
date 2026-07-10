@@ -30,4 +30,9 @@ class Board extends Model
     {
         return $this->hasMany(ClassRoom::class, 'board_id');
     }
+
+    public function labels()
+    {
+        return $this->hasMany(Label::class, 'board_id');
+    }
 }

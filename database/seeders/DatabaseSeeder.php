@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             AuthControllerSeeder::class,
             RoleSeeder::class,
             ClassRoomSeeder::class,
+            BoardControllerSeeder::class,
         ]);
     }
 }
