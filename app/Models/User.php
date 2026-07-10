@@ -42,7 +42,7 @@ class User extends Authenticatable
     }
     public function workspaces()
     {
-        return $this->hasMany(Workspace::class, 'created_by');
+        return $this->hasMany(Workspace::class, 'owner_id');
     }
 
     public function students()

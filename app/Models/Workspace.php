@@ -11,12 +11,17 @@ class Workspace extends Model
 
     protected $fillable = [
         'name',
-        'created_by',
+        'owner_id',
     ];
 
-    public function creator()
+    public function owner()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    public function members()
+    {
+        return $this->belongsToMany(User::class, 'workspace_user');
     }
 
     public function boards()

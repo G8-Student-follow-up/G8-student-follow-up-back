@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\WorkspaceController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -22,6 +23,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/users/{id}', [ApiUserController::class, 'show']);
     Route::put('/users/{id}', [ApiUserController::class, 'update']);
     Route::delete('users/{id}', [ApiUserController::class, 'destroy']);
+
+    Route::apiResource('workspaces', WorkspaceController::class);
+    Route::post('/workspaces/{workspace}/invite', [WorkspaceController::class, 'inviteTrainer']);
+    Route::delete('/workspaces/{workspace}/members/{user}', [WorkspaceController::class, 'removeMember']);
+
+
 });
 
 Route::middleware(['auth:sanctum', 'trainer'])->group(function () {
@@ -32,5 +39,5 @@ Route::middleware(['auth:sanctum', 'trainer'])->group(function () {
     Route::get('/users', [ApiUserController::class, 'index']);
     Route::get('/users/{id}', [ApiUserController::class, 'show']);
     Route::put('/users/{id}', [ApiUserController::class, 'update']);
-    Route::delete('users/{id}', [ApiUserController::class, 'destroy']);
+    Route::delete('/users/{id}', [ApiUserController::class, 'destroy']);
 });
