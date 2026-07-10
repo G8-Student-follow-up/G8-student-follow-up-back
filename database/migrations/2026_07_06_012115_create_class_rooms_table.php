@@ -12,17 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('classes', function (Blueprint $table) {
-
             $table->id();
-
-            $table->foreignId('board_id')
-                ->constrained()
-                ->cascadeOnDelete();
-
+            $table->foreignId('board_id')->constrained()->cascadeOnDelete();
             $table->string('title');
-
-            $table->integer('position')->default(0);
-
+            $table->unsignedInteger('position')->default(0);
             $table->timestamps();
         });
     }
@@ -32,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('class_rooms');
+        Schema::dropIfExists('classes');
     }
 };
