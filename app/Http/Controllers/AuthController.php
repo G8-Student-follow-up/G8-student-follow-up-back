@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Password;
 use App\Mail\ResetPasswordMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -114,5 +115,41 @@ class AuthController extends Controller
             : response()->json([
                 'message' => 'Invalid token or email'
             ], 400);
+    }
+
+    public function getUser(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json(['user' => $user]);
+    }
+
+    public function updateUser(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
+            'phone' => 'nullable|string|max:20',
+            'telegram' => 'nullable|string|max:255',
+            'current_password' => 'required_with:password|string',
+            'password' => 'sometimes|string|min:8|confirmed',
+        ]);
+
+        if (isset($validated['password'])) {
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return response()->json(['message' => 'Current password is incorrect'], 422);
+            }
+        }
+
+        $updateData = array_filter($validated, fn($key) => !in_array($key, ['current_password', 'password_confirmation']), ARRAY_FILTER_USE_KEY);
+
+        $user->update($updateData);
+
+        return response()->json([
+            'user' => $user,
+            'message' => 'Profile updated successfully',
+        ]);
     }
 }

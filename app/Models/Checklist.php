@@ -5,29 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Comment extends Model
+class Checklist extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'student_id',
         'card_id',
-        'user_id',
-        'message'
+        'title',
     ];
-
-    public function student()
-    {
-        return $this->belongsTo(Student::class);
-    }
 
     public function card()
     {
         return $this->belongsTo(Card::class);
     }
 
-    public function user()
+    public function items()
     {
-        return $this->belongsTo(User::class);
+        return $this->hasMany(ChecklistItem::class, 'checklist_id');
     }
 }
