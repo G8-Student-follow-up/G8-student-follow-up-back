@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Admin',
             'email' => 'admin@gmail.com',
         ]);
-        User::factory()->count(5)->create();
         $this->call([
             AuthControllerSeeder::class,
             RoleSeeder::class,

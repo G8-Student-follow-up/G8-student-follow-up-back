@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -23,10 +24,15 @@ class DashboardController extends Controller
             ['label' => 'Archived', 'value' => Student::where('status', 'Archived')->count(), 'color' => '#ef4444'],
         ];
 
-        $trendData = Student::selectRaw("DATE_FORMAT(created_at, '%b') as month, COUNT(*) as total")
+        $trendData = Student::selectRaw("
+                DATE_FORMAT(created_at, '%b') as month,
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending
+            ")
             ->where('created_at', '>=', now()->subMonths(6))
-            ->groupBy('month')
-            ->orderBy('created_at')
+            ->groupBy(DB::raw("DATE_FORMAT(created_at, '%b')"))
+            ->orderByRaw('MIN(created_at)')
             ->get();
 
         return response()->json([
