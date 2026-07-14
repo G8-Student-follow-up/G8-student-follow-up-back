@@ -22,7 +22,7 @@ class BoardController extends Controller
             ->withCount('columns', 'cards')
             ->where(function ($q) use ($user) {
                 $q->whereHas('workspace', function ($wq) use ($user) {
-                    $wq->where('created_by', $user->id)
+                    $wq->where('owner_id', $user->id)
                         ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
                 })->orWhereHas('members', fn($bq) => $bq->where('user_id', $user->id));
             });
@@ -185,7 +185,7 @@ class BoardController extends Controller
     {
         $hasWorkspaceAccess = $board->workspace()
             ->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
+                $q->where('owner_id', $user->id)
                     ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
             })->exists();
 
@@ -200,7 +200,7 @@ class BoardController extends Controller
     {
         $hasAccess = \App\Models\Workspace::where('id', $workspaceId)
             ->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
+                $q->where('owner_id', $user->id)
                     ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
             })->exists();
 
