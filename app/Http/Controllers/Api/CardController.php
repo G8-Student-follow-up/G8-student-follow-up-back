@@ -52,7 +52,7 @@ class CardController extends Controller
             'changes' => ['description' => "created card {$validated['title']}"],
         ]);
 
-        $card->load(['column', 'labels', 'student', 'trainer']);
+        $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
 
         return response()->json(['card' => $card], 201);
     }
@@ -92,7 +92,7 @@ class CardController extends Controller
             'changes' => ['description' => "updated card {$card->title}"],
         ]);
 
-        $card->load(['column', 'labels', 'student', 'trainer']);
+        $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
 
         return response()->json(['card' => $card]);
     }
@@ -121,7 +121,7 @@ class CardController extends Controller
 
         $card->update($validated);
 
-        $card->load(['column', 'labels', 'student', 'trainer']);
+        $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
 
         return response()->json(['card' => $card]);
     }
