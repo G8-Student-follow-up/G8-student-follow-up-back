@@ -21,16 +21,11 @@ return [
 
     'allowed_origins' => [
         'http://localhost:5173',
-<<<<<<< HEAD
-        'http://127.0.0.1:5173'
-    ],
-=======
         'http://127.0.0.1:5173',
         'http://localhost:5174',
         'http://127.0.0.1:5174',
 
         ],
->>>>>>> 92fc3c9e4adbbcc67c3de3b6382d76a47abc6aba
 
     'allowed_origins_patterns' => [],
 

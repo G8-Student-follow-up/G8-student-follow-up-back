@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Board;
 use App\Models\Card;
 use App\Models\Column;
@@ -100,7 +101,29 @@ class CardController extends Controller
             return response()->json(['message' => 'Column does not belong to the same board'], 422);
         }
 
+        // Store old values for activity log
+        $oldColumnId = $card->column_id;
+        $oldPosition = $card->position;
+
         $card->update($validated);
+
+        // Create activity log
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'moved',
+            'subject_type' => Card::class,
+            'subject_id' => $card->id,
+            'changes' => [
+                'column_id' => [
+                    'from' => $oldColumnId,
+                    'to' => $validated['column_id']
+                ],
+                'position' => [
+                    'from' => $oldPosition,
+                    'to' => $validated['position']
+                ]
+            ]
+        ]);
 
         $card->load(['column', 'labels', 'student']);
 
