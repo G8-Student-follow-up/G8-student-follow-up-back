@@ -13,6 +13,7 @@ class Column extends Model
         'board_id',
         'title',
         'position',
+        'color',
     ];
 
     public function board()

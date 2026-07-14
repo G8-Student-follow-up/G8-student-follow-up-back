@@ -15,6 +15,7 @@ class ColumnController extends Controller
             'board_id' => 'required|exists:boards,id',
             'title' => 'required|string|max:255',
             'position' => 'nullable|integer',
+            'color' => 'nullable|string|max:20',
         ]);
 
         $column = Column::create($validated);
