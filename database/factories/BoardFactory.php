@@ -2,21 +2,22 @@
 
 namespace Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\Board;
 use App\Models\Workspace;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
-class BoardControllerFactory extends Factory
+/**
+ * @extends Factory<Board>
+ */
+class BoardFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
+    protected $model = Board::class;
+
     public function definition(): array
     {
         return [
             'workspace_id' => Workspace::factory(),
-            'title' => 'Student Follow-up' . fake()->year(),
+            'title' => 'Student Follow-up ' . fake()->year(),
             'is_favorite' => fake()->boolean(20),
             'is_archived' => false,
         ];

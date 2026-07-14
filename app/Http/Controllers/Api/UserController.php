@@ -17,9 +17,22 @@ class UserController extends BaseController
     public function __construct(
         private UserService $userService
     ) {}
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::paginate(10);
+        $query = User::query();
+
+        if ($search = $request->search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($role = $request->role) {
+            $query->where('role', $role);
+        }
+
+        $users = $query->paginate(10);
 
         return $this->successResponse(
             $users,
@@ -27,12 +40,30 @@ class UserController extends BaseController
         );
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8',
+            'role' => 'sometimes|string|in:admin,trainer',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'role' => $validated['role'] ?? 'trainer',
+        ]);
+
+        return $this->successResponse($user, 'User created successfully', 201);
+    }
+
+    public function trainers()
+    {
+        $users = User::where('role', 'trainer')->get(['id', 'name', 'email', 'avatar']);
+
+        return response()->json(['users' => $users]);
     }
 
     /**
@@ -43,7 +74,7 @@ class UserController extends BaseController
         $user = User::find($id);
 
         if (!$user) {
-            return $this->errorReponse(
+            return $this->errorResponse(
                 'User not found',
                 404
             );
@@ -63,7 +94,7 @@ class UserController extends BaseController
         $user = User::find($id);
 
         if (!$user) {
-            return $this->errorReponse(
+            return $this->errorResponse(
                 'User not found',
                 404
             );
@@ -94,7 +125,7 @@ class UserController extends BaseController
         $user = User::find($id);
 
         if (!$user) {
-            return $this->errorReponse(
+            return $this->errorResponse(
                 'User not found',
                 404
             );

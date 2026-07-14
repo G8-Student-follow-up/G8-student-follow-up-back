@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceMember;
 use Illuminate\Http\Request;
 
 class WorkspaceController extends Controller
@@ -20,7 +20,10 @@ class WorkspaceController extends Controller
             'owner_id' => $request->user()->id,
         ]);
 
-        $workspace->members()->attach($request->user()->id);
+        WorkspaceMember::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $request->user()->id,
+        ]);
 
         return response()->json($workspace, 201);
     }
@@ -42,13 +45,19 @@ class WorkspaceController extends Controller
 
     public function inviteTrainer(Request $request, Workspace $workspace) {
         $data = $request->validate(['user_id' => 'required|exists:users,id']);
-        $workspace->members()->syncWithoutDetaching($data['user_id']);
+
+        WorkspaceMember::firstOrCreate([
+            'workspace_id' => $workspace->id,
+            'user_id' => $data['user_id'],
+        ]);
 
         return response()->json(['message' => 'Trainer invited']);
     }
 
-    public function removeMember(Workspace $workspace, User $user) {
-        $workspace->members()->detach($user->id);
+    public function removeMember(Workspace $workspace, $userId) {
+        WorkspaceMember::where('workspace_id', $workspace->id)
+            ->where('user_id', $userId)
+            ->delete();
 
         return response()->json(['message' => 'Member removed']);
     }

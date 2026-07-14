@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Services\StudentFollowUpService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 class StudentController extends Controller
 {
+    public function __construct(
+        private StudentFollowUpService $followUpService
+    ) {}
     #[OA\Get(
         path: "/api/students",
         summary: "Get all students",
@@ -25,9 +29,28 @@ class StudentController extends Controller
             )
         ]
     )]
-    public function index()
+    public function index(Request $request)
     {
-        return Student::with(['classroom', 'trainer', 'labels'])->get();
+        $query = Student::with(['classroom', 'trainer', 'labels']);
+
+        if ($search = $request->search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->status) {
+            $query->where('status', $status);
+        }
+
+        if ($classId = $request->class) {
+            $query->where('class_id', $classId);
+        }
+
+        $perPage = $request->per_page ?? 50;
+
+        return $query->paginate($perPage);
     }
 
     #[OA\Post(
@@ -74,7 +97,7 @@ class StudentController extends Controller
             'position' => ['nullable', 'integer'],
         ]);
 
-        $student = Student::create($validated);
+        $student = $this->followUpService->createStudent($validated);
 
         return response()->json($student, 201);
     }
@@ -149,6 +172,8 @@ class StudentController extends Controller
 
         $student->update($validated);
 
+        $this->followUpService->logActivity('updated student', $student);
+
         return response()->json($student);
     }
 
@@ -166,6 +191,8 @@ class StudentController extends Controller
     )]
     public function destroy(Student $student)
     {
+        $this->followUpService->logActivity('deleted student', $student);
+
         $student->delete();
 
         return response()->json(null, 204);

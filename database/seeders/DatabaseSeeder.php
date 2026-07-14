@@ -11,12 +11,14 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
     public function run(): void
     {
+        $this->call([
+            RoleSeeder::class,
+        ]);
+
         User::factory()->count(5)->create();
         $this->call([
-            AuthControllerSeeder::class,
-            RoleSeeder::class,
+            BoardSeeder::class,
             ClassRoomSeeder::class,
-            BoardControllerSeeder::class,
         ]);
     }
 }

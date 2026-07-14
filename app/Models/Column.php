@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Label extends Model
+class Column extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'board_id',
-        'name',
-        'color'
+        'title',
+        'position',
     ];
 
     public function board()
@@ -20,13 +20,8 @@ class Label extends Model
         return $this->belongsTo(Board::class);
     }
 
-    public function students()
-    {
-        return $this->belongsToMany(Student::class, 'student_labels');
-    }
-
     public function cards()
     {
-        return $this->belongsToMany(Card::class, 'card_labels');
+        return $this->hasMany(Card::class, 'column_id');
     }
 }

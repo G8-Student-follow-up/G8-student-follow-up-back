@@ -15,7 +15,9 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'avatar'
+        'avatar',
+        'phone',
+        'telegram',
     ];
     protected $hidden = [
         'password',
@@ -53,6 +55,21 @@ class User extends Authenticatable
     public function comments()
     {
         return $this->hasMany(Comment::class);
+    }
+
+    public function cards()
+    {
+        return $this->hasMany(Card::class, 'created_by');
+    }
+
+    public function boardMemberships()
+    {
+        return $this->hasMany(BoardMember::class);
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(Activity::class);
     }
 
     public function isAdmin(): bool

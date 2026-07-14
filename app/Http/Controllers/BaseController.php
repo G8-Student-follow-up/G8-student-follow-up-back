@@ -19,7 +19,7 @@ class BaseController extends Controller
         ], $status);
     }
 
-    protected function errorReponse(
+    protected function errorResponse(
         string $message = "Something went wrong",
         int $status = 400,
         mixed $errors = null

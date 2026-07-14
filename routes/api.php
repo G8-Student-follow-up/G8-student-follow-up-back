@@ -1,13 +1,19 @@
 <?php
 
-use App\Http\Controllers\ClassController;
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\BoardController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\CalendarController;
+use App\Http\Controllers\Api\CardController;
+use App\Http\Controllers\Api\ChecklistController;
+use App\Models\Attachment;
+use App\Http\Controllers\Api\ColumnController;
+use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
+use App\Http\Controllers\Api\WorkspaceController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\WorkspaceController;
-use App\Http\Controllers\BoardController;
-
 
 // ─────────────────────────────────────────────
 // PUBLIC ROUTES (no auth)
@@ -23,46 +29,99 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // ─────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'getUser']);
+    Route::put('/user', [AuthController::class, 'updateUser']);
 });
 
-// ─────────────────────────────────────────────
-// ADMIN-ONLY ROUTES (admin)
-// Manage Users, Manage Workspaces, Manage Boards, Monitor Activity, Dashboard
-// ─────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'admin'])->group(function () {
-    //users 
-    Route::apiResource('students', StudentController::class);
-    Route::get('/users', [ApiUserController::class, 'index']);
-    Route::get('/users/{id}', [ApiUserController::class, 'show']);
-    Route::put('/users/{id}', [ApiUserController::class, 'update']);
-    Route::delete('users/{id}', [ApiUserController::class, 'destroy']);
-    //workspaces
-    Route::apiResource('workspaces', WorkspaceController::class);
-    Route::post('/workspaces/{workspace}/invite', [WorkspaceController::class, 'inviteTrainer']);
-    Route::delete('/workspaces/{workspace}/members/{user}', [WorkspaceController::class, 'removeMember']);
-    //classes 
-    Route::get('/classes', [ClassController::class, 'index']);
-    Route::post('/classes', [ClassController::class, 'store']);
-    Route::put('/classes/reorder', [ClassController::class, 'reorder']);
-    Route::get('/classes/{classRoom}', [ClassController::class, 'show']);
-    Route::put('/classes/{classRoom}', [ClassController::class, 'update']);
-    Route::delete('/classes/{classRoom}', [ClassController::class, 'destroy']);
-    //Board 
-    Route::get('/boards/{board}/classes', [BoardController::class, 'index']);
-    Route::post('/boards/{board}/classes', [BoardController::class, 'store']);
-    Route::put('/classes/{class}', [BoardController::class, 'update']);
-    Route::delete('/classes/{class}', [BoardController::class, 'destroy']);
-    Route::post('/boards/{board}/classes/reorder', [BoardController::class, 'reorder']);
+Route::bind('attachment', fn($value) => Attachment::findOrFail($value));
+
+Route::middleware('auth:sanctum')->group(function () {
+    // Workspaces
+    Route::get('/workspaces', [WorkspaceController::class, 'index']);
+    Route::get('/workspaces/{workspace}', [WorkspaceController::class, 'show']);
+    Route::post('/workspaces', [WorkspaceController::class, 'store']);
+    Route::put('/workspaces/{workspace}', [WorkspaceController::class, 'update']);
+    Route::delete('/workspaces/{workspace}', [WorkspaceController::class, 'destroy']);
+    Route::get('/workspaces/{workspace}/members', [WorkspaceController::class, 'members']);
+    Route::post('/workspaces/{workspace}/members', [WorkspaceController::class, 'addMember']);
+    Route::delete('/workspaces/{workspace}/members/{userId}', [WorkspaceController::class, 'removeMember']);
+
+    // Boards
+    Route::get('/boards', [BoardController::class, 'index']);
+    Route::get('/boards/{board}', [BoardController::class, 'show']);
+    Route::post('/boards', [BoardController::class, 'store']);
+    Route::put('/boards/{board}', [BoardController::class, 'update']);
+    Route::delete('/boards/{board}', [BoardController::class, 'destroy']);
+    Route::post('/boards/{board}/favorite', [BoardController::class, 'favorite']);
+    Route::post('/boards/{board}/archive', [BoardController::class, 'archive']);
+    Route::get('/boards/{board}/members', [BoardController::class, 'members']);
+    Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
+    Route::delete('/boards/{board}/members/{userId}', [BoardController::class, 'removeMember']);
+
+    // Board Labels
+    Route::get('/boards/{board}/labels', [LabelController::class, 'index']);
+    Route::post('/boards/{board}/labels', [LabelController::class, 'store']);
+
     // Labels
-});
+    Route::put('/labels/{label}', [LabelController::class, 'update']);
+    Route::delete('/labels/{label}', [LabelController::class, 'destroy']);
 
-Route::middleware(['auth:sanctum', 'trainer'])->group(function () {
+    // Columns
+    Route::post('/columns', [ColumnController::class, 'store']);
+    Route::put('/columns/{column}', [ColumnController::class, 'update']);
+    Route::delete('/columns/{column}', [ColumnController::class, 'destroy']);
+    Route::post('/boards/{board}/columns/reorder', [ColumnController::class, 'reorder']);
+
+    // Cards
+    Route::post('/cards', [CardController::class, 'store']);
+    Route::put('/cards/{card}', [CardController::class, 'update']);
+    Route::delete('/cards/{card}', [CardController::class, 'destroy']);
+    Route::put('/cards/{card}/move', [CardController::class, 'move']);
+    Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
+    Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
+    Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
+    Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
+    Route::get('/cards/{card}/labels', [CardController::class, 'labels']);
+    Route::post('/cards/{card}/labels', [CardController::class, 'addLabel']);
+    Route::delete('/cards/{card}/labels/{labelId}', [CardController::class, 'removeLabel']);
+    Route::get('/cards/{card}/checklists', [CardController::class, 'checklists']);
+    Route::post('/cards/{card}/checklists', [CardController::class, 'addChecklist']);
+    Route::get('/cards/{card}/attachments', [CardController::class, 'attachments']);
+    Route::post('/cards/{card}/attachments', [CardController::class, 'addAttachment']);
+
+    // Attachments
+    Route::delete('/attachments/{attachment}', [CardController::class, 'destroyAttachment']);
+
+    // Checklists
+    Route::post('/checklists/{checklist}/items', [ChecklistController::class, 'addItem']);
+    Route::put('/checklist-items/{checklistItem}', [ChecklistController::class, 'updateItem']);
+    Route::delete('/checklist-items/{checklistItem}', [ChecklistController::class, 'destroyItem']);
+
+    // Dashboard
+    Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
+
+    // Calendar
+    Route::get('/calendar/events', [CalendarController::class, 'events']);
+
+    // Trainers
+    Route::get('/trainers', [ApiUserController::class, 'trainers']);
+
+    // Activities
+    Route::get('/activities', [ActivityController::class, 'index']);
+
+    // Students
     Route::get('/students', [StudentController::class, 'index']);
     Route::get('/students/{student}', [StudentController::class, 'show']);
+    Route::post('/students', [StudentController::class, 'store']);
     Route::put('/students/{student}', [StudentController::class, 'update']);
+    Route::delete('/students/{student}', [StudentController::class, 'destroy']);
 
-    Route::get('/users', [ApiUserController::class, 'index']);
-    Route::get('/users/{id}', [ApiUserController::class, 'show']);
-    Route::put('/users/{id}', [ApiUserController::class, 'update']);
-    Route::delete('/users/{id}', [ApiUserController::class, 'destroy']);
+    // Users (admin only)
+    Route::middleware('admin')->group(function () {
+        Route::get('/users', [ApiUserController::class, 'index']);
+        Route::get('/users/{id}', [ApiUserController::class, 'show']);
+        Route::post('/users', [ApiUserController::class, 'store']);
+        Route::put('/users/{id}', [ApiUserController::class, 'update']);
+        Route::delete('/users/{id}', [ApiUserController::class, 'destroy']);
+    });
 });

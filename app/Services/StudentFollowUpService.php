@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Student;
-use App\Models\ActivityLogs;
+use App\Models\Activity;
 
 
 // app/Services/StudentFollowUpService.php
@@ -30,9 +30,9 @@ class StudentFollowUpService
         return $student;
     }
 
-    private function logActivity(string $action, Student $subject): void
+    public function logActivity(string $action, Student $subject): void
     {
-        ActivityLogs::create([
+        Activity::create([
             'user_id' => auth()->id(),
             'action' => $action,
             'subject_type' => Student::class,

@@ -11,6 +11,8 @@ class Workspace extends Model
 
     protected $fillable = [
         'name',
+        'description',
+        'color',
         'owner_id',
     ];
 
@@ -21,7 +23,7 @@ class Workspace extends Model
 
     public function members()
     {
-        return $this->belongsToMany(User::class, 'workspace_user');
+        return $this->hasMany(WorkspaceMember::class);
     }
 
     public function boards()

@@ -12,6 +12,9 @@ class Board extends Model
     protected $fillable = [
         'workspace_id',
         'title',
+        'description',
+        'color',
+        'background',
         'is_favorite',
         'is_archived'
     ];
@@ -31,8 +34,23 @@ class Board extends Model
         return $this->hasMany(ClassRoom::class, 'board_id');
     }
 
+    public function columns()
+    {
+        return $this->hasMany(Column::class);
+    }
+
+    public function cards()
+    {
+        return $this->hasMany(Card::class);
+    }
+
     public function labels()
     {
-        return $this->hasMany(Label::class, 'board_id');
+        return $this->hasMany(Label::class);
+    }
+
+    public function members()
+    {
+        return $this->hasMany(BoardMember::class);
     }
 }
