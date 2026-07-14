@@ -174,7 +174,7 @@ class CardController extends Controller
             'label_id' => 'required|exists:labels,id',
         ]);
 
-        $card->labels()->attach($validated['label_id']);
+        $card->labels()->syncWithoutDetaching([$validated['label_id']]);
 
         $card->load('labels');
 
