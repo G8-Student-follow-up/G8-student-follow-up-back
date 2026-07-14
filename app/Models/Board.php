@@ -12,6 +12,8 @@ class Board extends Model
     protected $fillable = [
         'workspace_id',
         'title',
+        'color',
+        'description',
         'is_favorite',
         'is_archived'
     ];
@@ -19,6 +21,11 @@ class Board extends Model
     protected $casts = [
         'is_favorite' => 'boolean',
         'is_archived' => 'boolean',
+    ];
+
+    protected $attributes = [
+        'is_favorite' => false,
+        'is_archived' => false,
     ];
 
     public function workspace()

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -20,5 +21,14 @@ class DatabaseSeeder extends Seeder
             AuthControllerSeeder::class,
             RoleSeeder::class,
         ]);
+
+        // Create a test workspace for the first admin user
+        $admin = User::where('email', 'admin@gmail.com')->first();
+        if ($admin) {
+            Workspace::create([
+                'name' => 'My Workspace',
+                'created_by' => $admin->id,
+            ]);
+        }
     }
 }
