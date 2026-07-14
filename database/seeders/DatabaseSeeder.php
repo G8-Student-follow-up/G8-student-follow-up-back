@@ -14,8 +14,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
         ]);
-
-        User::factory()->count(5)->create();
         $this->call([
             BoardSeeder::class,
             ClassRoomSeeder::class,

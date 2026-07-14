@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Board;
 use App\Models\Card;
 use App\Models\Column;
@@ -28,13 +29,14 @@ class CardController extends Controller
             'status' => ['sometimes', Rule::in(['Pending', 'In Progress', 'Completed', 'Archived'])],
             'follow_up_date' => 'nullable|date',
             'due_date' => 'nullable|date',
+            'trainer_id' => 'nullable|exists:users,id',
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
         $this->ensureBoardAccess($board, $request->user());
 
         $column = Column::findOrFail($validated['column_id']);
-        if ($column->board_id != $validated['board_id']) {
+        if ((int) $column->board_id !== (int) $validated['board_id']) {
             return response()->json(['message' => 'Column does not belong to the specified board'], 422);
         }
 
@@ -42,7 +44,15 @@ class CardController extends Controller
 
         $card = Card::create($validated);
 
-        $card->load(['column', 'labels', 'student']);
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'create',
+            'subject_type' => 'card',
+            'subject_id' => $card->id,
+            'changes' => ['description' => "created card {$validated['title']}"],
+        ]);
+
+        $card->load(['column', 'labels', 'student', 'trainer']);
 
         return response()->json(['card' => $card], 201);
     }
@@ -61,19 +71,28 @@ class CardController extends Controller
             'status' => ['sometimes', Rule::in(['Pending', 'In Progress', 'Completed', 'Archived'])],
             'follow_up_date' => 'nullable|date',
             'due_date' => 'nullable|date',
+            'trainer_id' => 'nullable|exists:users,id',
         ]);
 
         if (isset($validated['column_id'])) {
             $column = Column::findOrFail($validated['column_id']);
             $boardId = $validated['board_id'] ?? $card->board_id;
-            if ($column->board_id != $boardId) {
+            if ((int) $column->board_id !== (int) $boardId) {
                 return response()->json(['message' => 'Column does not belong to the card board'], 422);
             }
         }
 
         $card->update($validated);
 
-        $card->load(['column', 'labels', 'student']);
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'update',
+            'subject_type' => 'card',
+            'subject_id' => $card->id,
+            'changes' => ['description' => "updated card {$card->title}"],
+        ]);
+
+        $card->load(['column', 'labels', 'student', 'trainer']);
 
         return response()->json(['card' => $card]);
     }
@@ -96,13 +115,13 @@ class CardController extends Controller
         ]);
 
         $column = Column::findOrFail($validated['column_id']);
-        if ($column->board_id != $card->board_id) {
+        if ((int) $column->board_id !== (int) $card->board_id) {
             return response()->json(['message' => 'Column does not belong to the same board'], 422);
         }
 
         $card->update($validated);
 
-        $card->load(['column', 'labels', 'student']);
+        $card->load(['column', 'labels', 'student', 'trainer']);
 
         return response()->json(['card' => $card]);
     }
@@ -140,6 +159,8 @@ class CardController extends Controller
             abort(403);
         }
 
+        $this->ensureBoardAccess($comment->card->board, $request->user());
+
         $validated = $request->validate([
             'message' => 'required|string',
         ]);
@@ -156,6 +177,8 @@ class CardController extends Controller
             abort(403);
         }
 
+        $this->ensureBoardAccess($comment->card->board, $request->user());
+
         $comment->delete();
 
         return response()->json(null, 204);
@@ -170,11 +193,13 @@ class CardController extends Controller
 
     public function addLabel(Request $request, Card $card)
     {
+        $this->ensureBoardAccess($card->board, $request->user());
+
         $validated = $request->validate([
             'label_id' => 'required|exists:labels,id',
         ]);
 
-        $card->labels()->attach($validated['label_id']);
+        $card->labels()->syncWithoutDetaching([$validated['label_id']]);
 
         $card->load('labels');
 
@@ -183,6 +208,8 @@ class CardController extends Controller
 
     public function removeLabel(Card $card, $labelId)
     {
+        $this->ensureBoardAccess($card->board, request()->user());
+
         $card->labels()->detach($labelId);
 
         return response()->json(null, 204);
@@ -197,6 +224,8 @@ class CardController extends Controller
 
     public function addChecklist(Request $request, Card $card)
     {
+        $this->ensureBoardAccess($card->board, $request->user());
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
         ]);

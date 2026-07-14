@@ -21,6 +21,7 @@ class Card extends Model
         'follow_up_date',
         'due_date',
         'created_by',
+        'trainer_id',
     ];
 
     protected $casts = [
@@ -46,6 +47,11 @@ class Card extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function trainer()
+    {
+        return $this->belongsTo(User::class, 'trainer_id');
     }
 
     public function comments()
