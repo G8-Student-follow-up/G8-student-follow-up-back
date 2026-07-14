@@ -49,6 +49,7 @@ class BoardController extends Controller
             'columns.cards.checklists' => fn($q) => $q->with('items'),
             'columns.cards.labels',
             'columns.cards.student',
+            'columns.cards.trainer',
             'members.user',
             'labels',
         ]);
