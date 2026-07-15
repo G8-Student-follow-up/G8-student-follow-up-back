@@ -19,12 +19,12 @@ class BaseController extends Controller
         ], $status);
     }
 
-    protected function errorReponse(
+    protected function errorResponse(
         string $message = "Something went wrong",
         int $status = 400,
         mixed $errors = null
     ): JsonResponse{
-        return response() -> json([
+        return response()->json([
             'success' => false,
             'message' => $message,
             'errors' => $errors,

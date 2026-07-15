@@ -14,6 +14,7 @@ class Workspace extends Model
     protected $fillable = [
         'name',
         'description',
+        'color',
         'created_by',
     ];
 
