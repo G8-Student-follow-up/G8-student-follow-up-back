@@ -8,7 +8,6 @@ use App\Models\WorkspaceMember;
 use App\Models\User;
 use App\Mail\WorkspaceInvitationMail;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -105,7 +104,7 @@ class WorkspaceController extends Controller
                 ['email' => $validated['email']],
                 [
                     'name' => explode('@', $validated['email'])[0],
-                    'password' => Hash::make(Str::random(16)),
+                    'password' => Str::random(16),
                     'role' => 'trainer',
                 ]
             );

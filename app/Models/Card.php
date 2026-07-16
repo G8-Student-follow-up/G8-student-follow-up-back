@@ -22,6 +22,7 @@ class Card extends Model
         'due_date',
         'created_by',
         'trainer_id',
+        'cover_attachment_id',
     ];
 
     protected $casts = [
@@ -62,6 +63,11 @@ class Card extends Model
     public function attachments()
     {
         return $this->hasMany(Attachment::class, 'card_id');
+    }
+
+    public function coverAttachment()
+    {
+        return $this->belongsTo(Attachment::class, 'cover_attachment_id');
     }
 
     public function labels()

@@ -8,7 +8,6 @@ use App\Models\BoardMember;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -142,7 +141,7 @@ class BoardController extends Controller
                 ['email' => $validated['email']],
                 [
                     'name' => explode('@', $validated['email'])[0],
-                    'password' => Hash::make(Str::random(16)),
+                    'password' => Str::random(16),
                     'role' => 'trainer',
                 ]
             );

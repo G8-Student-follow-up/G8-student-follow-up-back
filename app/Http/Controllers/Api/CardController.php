@@ -72,6 +72,10 @@ class CardController extends Controller
             'follow_up_date' => 'nullable|date',
             'due_date' => 'nullable|date',
             'trainer_id' => 'nullable|exists:users,id',
+            'cover_attachment_id' => [
+                'nullable',
+                Rule::exists('attachments', 'id')->where('card_id', $card->id),
+            ],
         ]);
 
         if (isset($validated['column_id'])) {
