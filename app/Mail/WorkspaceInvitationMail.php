@@ -13,13 +13,13 @@ class WorkspaceInvitationMail extends Mailable
 
     public $invitedBy;
     public $workspace;
-    public $url;
+    public $acceptUrl;
 
-    public function __construct(User $invitedBy, Workspace $workspace, string $url)
+    public function __construct(User $invitedBy, Workspace $workspace, string $acceptUrl)
     {
         $this->invitedBy = $invitedBy;
         $this->workspace = $workspace;
-        $this->url = $url;
+        $this->acceptUrl = $acceptUrl;
     }
 
     public function build()

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
 use Illuminate\Http\Request;
@@ -54,7 +55,7 @@ class WorkspaceController extends Controller
         return response()->json(['message' => 'Trainer invited']);
     }
 
-    public function removeMember(Workspace $workspace, $userId) {
+    public function removeMember(Workspace $workspace, User $userId) {
         WorkspaceMember::where('workspace_id', $workspace->id)
             ->where('user_id', $userId)
             ->delete();

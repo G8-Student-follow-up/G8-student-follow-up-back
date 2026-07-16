@@ -35,10 +35,13 @@
                                 <strong>{{ $invitedBy->name }}</strong> has invited you to join the workspace
                                 <strong>{{ $workspace->name }}</strong>.
                             </p>
+                            <p style="margin:0 0 24px; font-size:14px; line-height:1.6; color:#64748b;">
+                                Click the button below to accept the invitation and become a member of this workspace.
+                            </p>
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
                                     <td align="center" style="padding:32px 0;">
-                                        <a href="{{ $url }}" class="btn" target="_blank" rel="noopener">View Workspace</a>
+                                        <a href="{{ $acceptUrl }}" class="btn" target="_blank" rel="noopener">Accept Invitation</a>
                                     </td>
                                 </tr>
                             </table>

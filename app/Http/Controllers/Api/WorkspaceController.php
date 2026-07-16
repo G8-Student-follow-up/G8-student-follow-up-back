@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Workspace;
 use App\Models\WorkspaceMember;
+use App\Models\WorkspaceInvitation;
 use App\Models\User;
 use App\Mail\WorkspaceInvitationMail;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class WorkspaceController extends Controller
     {
         $this->ensureAccess($workspace, request()->user());
 
-        $workspace->load('owner', 'boards', 'members.user');
+        $workspace->load('owner', 'boards', 'members.user', 'invitations.user', 'invitations.invitedBy');
 
         return response()->json(['workspace' => $workspace]);
     }
@@ -90,6 +91,18 @@ class WorkspaceController extends Controller
         return response()->json(['members' => $workspace->members]);
     }
 
+    public function invitations(Workspace $workspace)
+    {
+        $this->ensureAccess($workspace, request()->user());
+
+        $invitations = $workspace->invitations()
+            ->with(['user', 'invitedBy'])
+            ->where('status', 'pending')
+            ->get();
+
+        return response()->json(['invitations' => $invitations]);
+    }
+
     public function addMember(Request $request, Workspace $workspace)
     {
         $this->ensureAccess($workspace, $request->user());
@@ -110,24 +123,89 @@ class WorkspaceController extends Controller
             );
             $userId = $user->id;
         } else {
-            $userId = $validated['user_id'];
+            $user = User::findOrFail($validated['user_id']);
+            $userId = $user->id;
         }
 
-        WorkspaceMember::firstOrCreate([
+        // Don't invite if the user is already a member
+        if (WorkspaceMember::where(['workspace_id' => $workspace->id, 'user_id' => $userId])->exists()) {
+            return response()->json(['message' => 'User is already a member of this workspace'], 409);
+        }
+
+        // Create a pending invitation instead of directly adding as member
+        $invitation = WorkspaceInvitation::firstOrCreate([
             'workspace_id' => $workspace->id,
             'user_id' => $userId,
+        ], [
+            'invited_by' => $request->user()->id,
+            'status' => 'pending',
         ]);
 
-        if (isset($validated['email'])) {
-            try {
-                $url = env('FRONTEND_URL') . "/app/workspaces/{$workspace->id}";
-                Mail::to($user->email)->send(new WorkspaceInvitationMail($request->user(), $workspace, $url));
-            } catch (\Exception $e) {
-                // Email sending failed, but member was added
-            }
+        // If invitation already existed and was declined, reset it
+        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+            $invitation->update([
+                'invited_by' => $request->user()->id,
+                'status' => 'pending',
+            ]);
         }
 
-        return response()->json(['message' => 'Member added successfully']);
+        $invitation->load('user', 'invitedBy');
+
+        // Send invitation email
+        try {
+            $acceptUrl = env('FRONTEND_URL') . "/app/invitations/workspace/{$invitation->id}/accept";
+            Mail::to($user->email)->send(new WorkspaceInvitationMail($request->user(), $workspace, $acceptUrl));
+        } catch (\Exception $e) {
+            // Email sending failed, but invitation was created
+        }
+
+        return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully']);
+    }
+
+    public function acceptInvitation(Request $request, WorkspaceInvitation $invitation)
+    {
+        $user = $request->user();
+
+        // Only the invited user can accept
+        if ($invitation->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$invitation->isPending()) {
+            return response()->json(['message' => 'Invitation is no longer pending'], 400);
+        }
+
+        $invitation->accept();
+
+        return response()->json([
+            'message' => 'Invitation accepted successfully',
+            'workspace' => $invitation->workspace,
+        ]);
+    }
+
+    public function declineInvitation(Request $request, WorkspaceInvitation $invitation)
+    {
+        $user = $request->user();
+
+        // Only the invited user can decline
+        if ($invitation->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$invitation->isPending()) {
+            return response()->json(['message' => 'Invitation is no longer pending'], 400);
+        }
+
+        $invitation->decline();
+
+        return response()->json(['message' => 'Invitation declined']);
+    }
+
+    public function myInvitations(Request $request)
+    {
+        $invitations = $request->user()->pendingWorkspaceInvitations;
+
+        return response()->json(['invitations' => $invitations]);
     }
 
     public function removeMember(Workspace $workspace, $userId)

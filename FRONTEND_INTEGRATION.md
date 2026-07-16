@@ -257,6 +257,36 @@ await api.post(`/boards/${boardId}/columns/reorder`, {
 });
 ```
 
+### 3.6 Workspace Invitation Flow
+
+The invitation flow works like this:
+
+1. **Workspace owner** invites a user by email:
+   ```typescript
+   await api.post(`/workspaces/${workspaceId}/members`, { email: "user@example.com" });
+   // Response: { invitation: {...}, message: "Invitation sent successfully" }
+   ```
+
+2. **Invited user** sees pending invitations on app load:
+   ```typescript
+   // Call this when the user logs in or on app mount
+   const { data } = await api.get('/invitations');
+   // Show a notification badge if data.invitations.length > 0
+   ```
+
+3. **Invited user** accepts or declines:
+   ```typescript
+   // Accept
+   await api.post(`/invitations/workspace/${invitationId}/accept`);
+   
+   // Decline
+   await api.post(`/invitations/workspace/${invitationId}/decline`);
+   ```
+
+4. After accepting, the user becomes a workspace member and can access the workspace and its boards.
+
+> **Frontend implementation tip:** On every app load / login, call `GET /api/invitations` and show a notification badge (e.g., "You have X pending invitations") or a modal/dropdown listing the invitations with Accept/Decline buttons.
+
 ---
 
 ## 4. Complete Endpoint Reference
@@ -290,13 +320,17 @@ await api.post(`/boards/${boardId}/columns/reorder`, {
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | /workspaces?search= | List user's workspaces |
-| GET | /workspaces/{id} | Get workspace details (boards, members) |
+| GET | /workspaces/{id} | Get workspace details (with boards, members, invitations) |
 | POST | /workspaces | Create workspace |
 | PUT | /workspaces/{id} | Update workspace |
 | DELETE | /workspaces/{id} | Delete workspace |
 | GET | /workspaces/{id}/members | List members |
 | POST | /workspaces/{id}/members | Add member by user_id or email |
 | DELETE | /workspaces/{id}/members/{userId} | Remove member |
+| GET | /workspaces/{id}/invitations | List pending invitations for a workspace |
+| GET | /invitations | Get my pending invitations (for the invited user) |
+| POST | /invitations/workspace/{id}/accept | Accept a workspace invitation |
+| POST | /invitations/workspace/{id}/decline | Decline a workspace invitation |
 
 ```json
 // POST /workspaces
@@ -307,6 +341,134 @@ await api.post(`/boards/${boardId}/columns/reorder`, {
 // OR
 { "email": "new@email.com" }  // auto-create + invite
 ```
+
+### 4.2.1 Workspace Invitations
+
+When you invite someone by email via `POST /workspaces/{id}/members` (see above), the backend:
+
+- Finds or auto-creates a user with that email
+- Creates a **pending invitation** record (instead of directly adding them as a member)
+- Sends an email to the invited user with an accept link
+
+> **⚠️ Important for new users:** If the invited email doesn't have an account yet, the system auto-creates one with a **random password**. The user won't be able to log in until they use the **Forgot Password** flow (`POST /api/forgot-password`). The invitation email does not include a temporary password, so remind users to check their email for the invitation and use **Forgot Password** on the login page if they can't sign in.
+
+#### View Pending Invitations (for Workspace Owners / Members)
+
+```http
+GET /api/workspaces/{id}/invitations
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+{
+  "invitations": [
+    {
+      "id": 1,
+      "workspace_id": 1,
+      "user_id": 5,
+      "invited_by": 1,
+      "status": "pending",
+      "created_at": "2026-07-14T12:00:00.000000Z",
+      "updated_at": "2026-07-14T12:00:00.000000Z",
+      "user": {
+        "id": 5,
+        "name": "ya.phorn",
+        "email": "ya.phorn@student.passerellesnumeriques.org",
+        "role": "trainer"
+      },
+      "invited_by": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "role": "admin"
+      }
+    }
+  ]
+}
+```
+
+#### View My Invitations (for Invited Users)
+
+This is the endpoint the **invited user** calls to see all their pending workspace invitations. **Use this on app load to show a notification/badge.**
+
+```http
+GET /api/invitations
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+{
+  "invitations": [
+    {
+      "id": 1,
+      "workspace_id": 1,
+      "user_id": 5,
+      "invited_by": 1,
+      "status": "pending",
+      "created_at": "2026-07-14T12:00:00.000000Z",
+      "updated_at": "2026-07-14T12:00:00.000000Z",
+      "workspace": {
+        "id": 1,
+        "name": "My Workspace",
+        "description": "A workspace description",
+        "color": "#3b82f6"
+      },
+      "invited_by": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com"
+      }
+    }
+  ]
+}
+```
+
+#### Accept an Invitation
+
+```http
+POST /api/invitations/workspace/{id}/accept
+Authorization: Bearer <token>
+Content-Type: application/json
+
+(no body required)
+```
+
+**Response (200):**
+```json
+{
+  "message": "Invitation accepted successfully",
+  "workspace": {
+    "id": 1,
+    "name": "My Workspace",
+    ...
+  }
+}
+```
+
+**Error responses:**
+- `403` — Unauthorized (only the invited user can accept)
+- `400` — Invitation is no longer pending (already accepted or declined)
+
+#### Decline an Invitation
+
+```http
+POST /api/invitations/workspace/{id}/decline
+Authorization: Bearer <token>
+Content-Type: application/json
+
+(no body required)
+```
+
+**Response (200):**
+```json
+{
+  "message": "Invitation declined"
+}
+```
+
+---
 
 ### 4.3 Boards
 

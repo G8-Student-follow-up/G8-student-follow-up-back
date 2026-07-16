@@ -72,6 +72,13 @@ class User extends Authenticatable
         return $this->hasMany(Activity::class);
     }
 
+    public function pendingWorkspaceInvitations()
+    {
+        return $this->hasMany(WorkspaceInvitation::class, 'user_id')
+            ->where('status', 'pending')
+            ->with('workspace', 'invitedBy');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

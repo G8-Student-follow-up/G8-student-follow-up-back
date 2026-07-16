@@ -26,6 +26,11 @@ class Workspace extends Model
         return $this->hasMany(WorkspaceMember::class);
     }
 
+    public function invitations()
+    {
+        return $this->hasMany(WorkspaceInvitation::class);
+    }
+
     public function boards()
     {
         return $this->hasMany(Board::class);
