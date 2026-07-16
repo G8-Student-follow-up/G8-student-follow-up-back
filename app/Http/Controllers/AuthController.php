@@ -18,10 +18,24 @@ class AuthController extends Controller
     {
         $data = $request->validated();
 
+        $existingUser = User::where('email', $data['email'])->first();
+
+        if ($existingUser) {
+            $existingUser->update([
+                'name' => $data['name'],
+                'password' => $data['password'],
+            ]);
+
+            return response()->json([
+                'user' => $existingUser,
+                'token' => $existingUser->createToken('api')->plainTextToken,
+            ], 200);
+        }
+
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => $data['password'],
+            'password' => Hash::make($data['password']),
             'role' => $data['role'] ?? 'trainer',
         ]);
 
