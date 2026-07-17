@@ -97,7 +97,7 @@ class WorkspaceController extends Controller
 
         $invitations = $workspace->invitations()
             ->with(['user', 'invitedBy'])
-            ->where('status', 'pending')
+            ->where('trainerstatus', 'pending')
             ->get();
 
         return response()->json(['invitations' => $invitations]);
@@ -137,15 +137,19 @@ class WorkspaceController extends Controller
             'workspace_id' => $workspace->id,
             'user_id' => $userId,
         ], [
+            'email' => $user->email,
             'invited_by' => $request->user()->id,
-            'status' => 'pending',
+            'name' => $user->name,
+            'token' => Str::random(64),
+            'role' => $user->role,
+            'trainerstatus' => 'pending',
         ]);
 
         // If invitation already existed and was declined, reset it
-        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+        if ($invitation->wasRecentlyCreated === false && $invitation->trainerstatus === 'declined') {
             $invitation->update([
                 'invited_by' => $request->user()->id,
-                'status' => 'pending',
+                'trainerstatus' => 'pending',
             ]);
         }
 

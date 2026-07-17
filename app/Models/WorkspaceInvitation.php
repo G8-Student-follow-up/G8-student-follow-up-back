@@ -11,13 +11,15 @@ class WorkspaceInvitation extends Model
 
     protected $fillable = [
         'workspace_id',
-        'user_id',
         'invited_by',
-        'status',
-    ];
-
-    protected $casts = [
-        'status' => 'string',
+        'email',
+        'user_id',
+        'name',
+        'token',
+        'role',
+        'trainerstatus',
+        'expires_at',
+        'accepted_at',
     ];
 
     public function workspace()
@@ -37,17 +39,17 @@ class WorkspaceInvitation extends Model
 
     public function isPending(): bool
     {
-        return $this->status === 'pending';
+        return $this->trainerstatus === 'pending';
     }
 
     public function isAccepted(): bool
     {
-        return $this->status === 'accepted';
+        return $this->trainerstatus === 'accepted';
     }
 
     public function accept(): void
     {
-        $this->update(['status' => 'accepted']);
+        $this->update(['trainerstatus' => 'accepted', 'accepted_at' => now()]);
         WorkspaceMember::firstOrCreate([
             'workspace_id' => $this->workspace_id,
             'user_id' => $this->user_id,
@@ -56,6 +58,6 @@ class WorkspaceInvitation extends Model
 
     public function decline(): void
     {
-        $this->update(['status' => 'declined']);
+        $this->update(['trainerstatus' => 'declined']);
     }
 }

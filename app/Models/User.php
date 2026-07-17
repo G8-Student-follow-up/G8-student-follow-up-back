@@ -75,7 +75,7 @@ class User extends Authenticatable
     public function pendingWorkspaceInvitations()
     {
         return $this->hasMany(WorkspaceInvitation::class, 'user_id')
-            ->where('status', 'pending')
+            ->where('trainerstatus', 'pending')
             ->with('workspace', 'invitedBy');
     }
 
