@@ -52,6 +52,7 @@ class WorkspaceController extends Controller
         ]);
 
         $validated['owner_id'] = $request->user()->id;
+        $validated['created_by'] = $request->user()->id;
 
         $workspace = Workspace::create($validated);
 
