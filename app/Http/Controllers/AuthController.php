@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Services\UserService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -185,5 +186,83 @@ class AuthController extends Controller
             'user' => $user,
             'message' => 'Avatar uploaded successfully',
         ]);
+    }
+
+    // TRY TO DO SOCIAL LOGIN 
+    //  Redirect the user to the OAuth provider (Google/GitHub).
+    //  Returns the redirect URL for the frontend to use.
+
+    public function redirectToProvider(string $provider)
+    {
+        if (!in_array($provider, ['google', 'github'])) {
+            return response()->json([
+                'message' => 'Invalid provider. Supported: google, github'
+            ], 400);
+        }
+
+        $redirectUrl = Socialite::driver($provider)
+            ->stateless()
+            ->redirect()
+            ->getTargetUrl();
+
+        return response()->json([
+            'redirect_url' => $redirectUrl,
+        ]);
+    }
+
+    /**
+     * Handle the callback from the OAuth provider.
+     * Creates or links a user and returns a Sanctum token.
+     */
+    public function handleProviderCallback(string $provider)
+    {
+        if (!in_array($provider, ['google', 'github'])) {
+            return response()->json([
+                'message' => 'Invalid provider. Supported: google, github'
+            ], 400);
+        }
+
+        try {
+            $socialUser = Socialite::driver($provider)->stateless()->user();
+        } catch (\Exception $e) {
+            // Redirect to frontend with an error flag instead of raw JSON
+            return redirect(config('app.frontend_url') . '/login?error=oauth_failed');
+        }
+
+        // Check if user already exists by provider info
+        $user = User::where('provider', $provider)
+            ->where('provider_id', $socialUser->getId())
+            ->first();
+
+        // If not found by provider, check by email
+        if (!$user) {
+            $user = User::where('email', $socialUser->getEmail())->first();
+
+            if ($user) {
+                // Link the provider to an existing user
+                $user->update([
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                    'avatar' => $user->avatar ?? ($socialUser->getAvatar() ?: null),
+                ]);
+            } else {
+                // Create a new user from social data
+                $user = User::create([
+                    'name' => $socialUser->getName() ?? $socialUser->getNickname(),
+                    'email' => $socialUser->getEmail(),
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                    'role' => 'trainer',
+                    'avatar' => $socialUser->getAvatar() ?: null,
+                    'password' => null,
+                ]);
+            }
+        }
+
+        // Generate Sanctum token
+        $token = $user->createToken('api')->plainTextToken;
+
+        // Redirect back to the frontend with the token as a query param
+        return redirect(config('app.frontend_url') . '/auth/callback?token=' . $token);
     }
 }
