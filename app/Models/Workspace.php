@@ -14,6 +14,7 @@ class Workspace extends Model
         'description',
         'color',
         'owner_id',
+        'created_by',
     ];
 
     public function owner()

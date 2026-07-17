@@ -30,6 +30,7 @@ class CardController extends Controller
             'follow_up_date' => 'nullable|date',
             'due_date' => 'nullable|date',
             'trainer_id' => 'nullable|exists:users,id',
+            'photo' => 'nullable|image|max:10240',
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
@@ -42,7 +43,24 @@ class CardController extends Controller
 
         $validated['created_by'] = $request->user()->id;
 
+        // photo isn't a card column, so pull it out before creating the card
+        $photo = $validated['photo'] ?? null;
+        unset($validated['photo']);
+
         $card = Card::create($validated);
+
+        if ($photo) {
+            $path = $photo->store('attachments', 'public');
+
+            $attachment = Attachment::create([
+                'card_id' => $card->id,
+                'file_path' => $path,
+                'file_type' => $photo->getClientMimeType(),
+                'file_size' => $photo->getSize(),
+            ]);
+
+            $card->update(['cover_attachment_id' => $attachment->id]);
+        }
 
         Activity::create([
             'user_id' => $request->user()->id,
@@ -52,7 +70,7 @@ class CardController extends Controller
             'changes' => ['description' => "created card {$validated['title']}"],
         ]);
 
-        $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
+        $card->load(['column', 'labels', 'student', 'trainer', 'attachments', 'coverAttachment']);
 
         return response()->json(['card' => $card], 201);
     }

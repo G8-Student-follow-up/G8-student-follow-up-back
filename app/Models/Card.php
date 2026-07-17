@@ -25,9 +25,9 @@ class Card extends Model
         'cover_attachment_id',
     ];
 
-    protected $casts = [
-        'follow_up_date' => 'date',
-        'due_date' => 'date',
+       protected $casts = [
+        'follow_up_date' => 'date:Y-m-d',
+        'due_date' => 'date:Y-m-d',
     ];
 
     public function board()

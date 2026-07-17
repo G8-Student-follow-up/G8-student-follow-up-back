@@ -31,6 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'getUser']);
     Route::put('/user', [AuthController::class, 'updateUser']);
+    Route::post('/user/avatar', [AuthController::class, 'uploadAvatar']);
 });
 
 Route::bind('attachment', fn($value) => Attachment::findOrFail($value));

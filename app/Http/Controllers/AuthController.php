@@ -9,11 +9,16 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use App\Mail\ResetPasswordMail;
 use Illuminate\Support\Facades\Mail;
+use App\Services\UserService;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private UserService $userService
+    ) {}
+
     public function register(RegisterRequest $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->validated();
@@ -145,6 +150,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
+            'role' => 'sometimes|string|in:admin,trainer',
             'phone' => 'nullable|string|max:20',
             'telegram' => 'nullable|string|max:255',
             'current_password' => 'required_with:password|string',
@@ -164,6 +170,20 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'message' => 'Profile updated successfully',
+        ]);
+    }
+
+    public function uploadAvatar(Request $request)
+    {
+        $validated = $request->validate([
+            'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $user = $this->userService->update($request->user(), $validated);
+
+        return response()->json([
+            'user' => $user,
+            'message' => 'Avatar uploaded successfully',
         ]);
     }
 }
