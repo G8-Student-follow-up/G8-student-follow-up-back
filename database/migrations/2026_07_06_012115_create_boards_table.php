@@ -12,18 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('boards', function (Blueprint $table) {
-
             $table->id();
-
-            $table->foreignId('workspace_id')
-                ->constrained()
-                ->cascadeOnDelete();
-
+            $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
             $table->string('title');
-
             $table->boolean('is_favorite')->default(false);
             $table->boolean('is_archived')->default(false);
-
             $table->timestamps();
         });
     }
@@ -36,3 +29,4 @@ return new class extends Migration
         Schema::dropIfExists('boards');
     }
 };
+

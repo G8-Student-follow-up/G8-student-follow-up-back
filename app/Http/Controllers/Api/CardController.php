@@ -284,7 +284,7 @@ class CardController extends Controller
     {
         $hasWorkspaceAccess = $board->workspace()
             ->where(function ($q) use ($user) {
-                $q->where('created_by', $user->id)
+                $q->where('owner_id', $user->id)
                   ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
             })->exists();
 

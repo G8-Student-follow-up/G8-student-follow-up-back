@@ -11,13 +11,12 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
     public function run(): void
     {
-        User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@gmail.com',
+        $this->call([
+            RoleSeeder::class,
         ]);
         $this->call([
-            AuthControllerSeeder::class,
-            RoleSeeder::class,
+            BoardSeeder::class,
+            ClassRoomSeeder::class,
         ]);
     }
 }

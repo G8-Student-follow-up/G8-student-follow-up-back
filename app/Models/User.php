@@ -44,7 +44,7 @@ class User extends Authenticatable
     }
     public function workspaces()
     {
-        return $this->hasMany(Workspace::class, 'created_by');
+        return $this->hasMany(Workspace::class, 'owner_id');
     }
 
     public function students()
@@ -70,6 +70,13 @@ class User extends Authenticatable
     public function activities()
     {
         return $this->hasMany(Activity::class);
+    }
+
+    public function pendingWorkspaceInvitations()
+    {
+        return $this->hasMany(WorkspaceInvitation::class, 'user_id')
+            ->where('status', 'pending')
+            ->with('workspace', 'invitedBy');
     }
 
     public function isAdmin(): bool
