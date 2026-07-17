@@ -15,12 +15,18 @@ use App\Http\Controllers\Api\WorkspaceController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
+// ─────────────────────────────────────────────
+// PUBLIC ROUTES (no auth)
+// 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
+// ─────────────────────────────────────────────
+// AUTHENTICATED ROUTES (shared by all roles)
+// ─────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'getUser']);
@@ -39,6 +45,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/workspaces/{workspace}/members', [WorkspaceController::class, 'members']);
     Route::post('/workspaces/{workspace}/members', [WorkspaceController::class, 'addMember']);
     Route::delete('/workspaces/{workspace}/members/{userId}', [WorkspaceController::class, 'removeMember']);
+    Route::get('/workspaces/{workspace}/invitations', [WorkspaceController::class, 'invitations']);
+    Route::get('/invitations', [WorkspaceController::class, 'myInvitations']);
+    Route::post('/invitations/workspace/{invitation}/accept', [WorkspaceController::class, 'acceptInvitation']);
+    Route::post('/invitations/workspace/{invitation}/decline', [WorkspaceController::class, 'declineInvitation']);
 
     // Boards
     Route::get('/boards', [BoardController::class, 'index']);

@@ -4,7 +4,6 @@ namespace App\Mail;
 
 use App\Models\User;
 use App\Models\Board;
-use App\Models\Workspace;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 

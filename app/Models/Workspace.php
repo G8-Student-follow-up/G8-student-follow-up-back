@@ -13,21 +13,26 @@ class Workspace extends Model
         'name',
         'description',
         'color',
-        'created_by',
+        'owner_id',
     ];
 
-    public function creator()
+    public function owner()
     {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function boards()
-    {
-        return $this->hasMany(Board::class);
+        return $this->belongsTo(User::class, 'owner_id');
     }
 
     public function members()
     {
         return $this->hasMany(WorkspaceMember::class);
+    }
+
+    public function invitations()
+    {
+        return $this->hasMany(WorkspaceInvitation::class);
+    }
+
+    public function boards()
+    {
+        return $this->hasMany(Board::class);
     }
 }
