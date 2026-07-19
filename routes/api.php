@@ -24,6 +24,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
+// Social Login
+Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirectToProvider']);
+Route::get('/auth/{provider}/callback', [AuthController::class, 'handleProviderCallback']);
+
 // ─────────────────────────────────────────────
 // AUTHENTICATED ROUTES (shared by all roles)
 // ─────────────────────────────────────────────

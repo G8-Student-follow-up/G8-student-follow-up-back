@@ -18,6 +18,8 @@ class User extends Authenticatable
         'avatar',
         'phone',
         'telegram',
+        'provider',
+        'provider_id',
     ];
     protected $hidden = [
         'password',
@@ -35,12 +37,18 @@ class User extends Authenticatable
         ];
     }
 
-    public function getAvatarUrlAttribute(){
-        if (!$this -> avatar){
+    public function getAvatarUrlAttribute()
+    {
+        if (!$this->avatar) {
             return null;
         }
 
-        return asset('storage/' . $this -> avatar);
+        // If it's already a full URL (e.g., from social login), return as-is
+        if (filter_var($this->avatar, FILTER_VALIDATE_URL)) {
+            return $this->avatar;
+        }
+
+        return asset('storage/' . $this->avatar);
     }
     public function workspaces()
     {
