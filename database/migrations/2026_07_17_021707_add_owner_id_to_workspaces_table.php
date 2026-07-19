@@ -1,28 +1,24 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
+    /**
+     * This migration is intentionally a no-op because the `owner_id` column
+     * was already created by the original `create_workspaces_table` migration
+     * (2026_07_06_012114_create_workspaces_table.php).
+     *
+     * The column exists as NOT NULL with a foreign key constraint, which is
+     * the correct schema since the controller always sets `owner_id` on create.
+     */
     public function up(): void
     {
-        Schema::table('workspaces', function (Blueprint $table) {
-            $table->foreignId('owner_id')->nullable()->constrained('users')->cascadeOnDelete();
-        });
-
-        
-        DB::table('workspaces')->whereNull('owner_id')->update(['owner_id' => 1]);
+        // No-op: owner_id column already exists
     }
 
     public function down(): void
     {
-        Schema::table('workspaces', function (Blueprint $table) {
-            $table->dropForeign(['owner_id']);
-            $table->dropColumn('owner_id');
-        });
+        // No-op: the original migration handles the column lifecycle
     }
 };
