@@ -10,12 +10,20 @@ use App\Models\Column;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\Checklist;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class CardController extends Controller
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -43,7 +51,6 @@ class CardController extends Controller
 
         $validated['created_by'] = $request->user()->id;
 
-        // photo isn't a card column, so pull it out before creating the card
         $photo = $validated['photo'] ?? null;
         unset($validated['photo']);
 
@@ -69,6 +76,16 @@ class CardController extends Controller
             'subject_id' => $card->id,
             'changes' => ['description' => "created card {$validated['title']}"],
         ]);
+
+        $this->notificationService->notifyBoardMembers(
+            boardId: $board->id,
+            actorId: $request->user()->id,
+            type: 'activity',
+            title: 'New Card Created',
+            message: $request->user()->name . ' created card "' . $validated['title'] . '"',
+            data: ['card_id' => $card->id, 'board_id' => $board->id, 'workspace_id' => $board->workspace_id],
+            actionUrl: '/app/boards/' . $board->id
+        );
 
         $card->load(['column', 'labels', 'student', 'trainer', 'attachments', 'coverAttachment']);
 
@@ -114,6 +131,16 @@ class CardController extends Controller
             'changes' => ['description' => "updated card {$card->title}"],
         ]);
 
+        $this->notificationService->notifyBoardMembers(
+            boardId: $card->board_id,
+            actorId: $request->user()->id,
+            type: 'activity',
+            title: 'Card Updated',
+            message: $request->user()->name . ' updated card "' . $card->title . '"',
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id],
+            actionUrl: '/app/boards/' . $card->board_id
+        );
+
         $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
 
         return response()->json(['card' => $card]);
@@ -142,6 +169,16 @@ class CardController extends Controller
         }
 
         $card->update($validated);
+
+        $this->notificationService->notifyBoardMembers(
+            boardId: $card->board_id,
+            actorId: $request->user()->id,
+            type: 'activity',
+            title: 'Card Moved',
+            message: $request->user()->name . ' moved card "' . $card->title . '"',
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id],
+            actionUrl: '/app/boards/' . $card->board_id
+        );
 
         $card->load(['column', 'labels', 'student', 'trainer', 'attachments']);
 
@@ -172,6 +209,24 @@ class CardController extends Controller
 
         $comment->load('user');
 
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'create',
+            'subject_type' => 'comment',
+            'subject_id' => $comment->id,
+            'changes' => ['description' => "commented on card \"{$card->title}\""],
+        ]);
+
+        $this->notificationService->notifyBoardMembers(
+            boardId: $card->board_id,
+            actorId: $request->user()->id,
+            type: 'comment',
+            title: 'New Comment',
+            message: $request->user()->name . ' commented: ' . $validated['message'],
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'comment_id' => $comment->id],
+            actionUrl: '/app/boards/' . $card->board_id
+        );
+
         return response()->json(['comment' => $comment], 201);
     }
 
@@ -190,6 +245,14 @@ class CardController extends Controller
         $comment->update(['message' => $validated['message']]);
         $comment->load('user');
 
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'update',
+            'subject_type' => 'comment',
+            'subject_id' => $comment->id,
+            'changes' => ['description' => "updated a comment on card \"{$comment->card->title}\""],
+        ]);
+
         return response()->json(['comment' => $comment]);
     }
 
@@ -201,7 +264,18 @@ class CardController extends Controller
 
         $this->ensureBoardAccess($comment->card->board, $request->user());
 
+        $cardTitle = $comment->card->title;
+        $commentId = $comment->id;
+
         $comment->delete();
+
+        Activity::create([
+            'user_id' => $request->user()->id,
+            'action' => 'delete',
+            'subject_type' => 'comment',
+            'subject_id' => $commentId,
+            'changes' => ['description' => "deleted a comment on card \"{$cardTitle}\""],
+        ]);
 
         return response()->json(null, 204);
     }
@@ -284,6 +358,16 @@ class CardController extends Controller
             'file_type' => $validated['file_type'] ?? $validated['file']->getClientMimeType(),
             'file_size' => $validated['file']->getSize(),
         ]);
+
+        $this->notificationService->notifyBoardMembers(
+            boardId: $card->board_id,
+            actorId: $request->user()->id,
+            type: 'attachment',
+            title: 'File Uploaded',
+            message: $request->user()->name . ' uploaded a file to card "' . $card->title . '"',
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'attachment_id' => $attachment->id],
+            actionUrl: '/app/boards/' . $card->board_id
+        );
 
         return response()->json(['attachment' => $attachment], 201);
     }
