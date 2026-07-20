@@ -10,19 +10,16 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::table('workspaces', function (Blueprint $table) {
-            $table->foreignId('owner_id')->nullable()->constrained('users')->cascadeOnDelete();
-        });
-
-        
-        DB::table('workspaces')->whereNull('owner_id')->update(['owner_id' => 1]);
+        // owner_id column already exists from create_workspaces_table migration
+        // Only backfill any null values
+        if (Schema::hasColumn('workspaces', 'owner_id')) {
+            DB::table('workspaces')->whereNull('owner_id')->update(['owner_id' => 1]);
+        }
     }
 
     public function down(): void
     {
-        Schema::table('workspaces', function (Blueprint $table) {
-            $table->dropForeign(['owner_id']);
-            $table->dropColumn('owner_id');
-        });
+        // owner_id column was created in create_workspaces_table migration
+        // No action needed - do not drop a column owned by another migration
     }
 };
