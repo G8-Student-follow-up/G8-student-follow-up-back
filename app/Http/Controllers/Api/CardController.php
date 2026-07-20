@@ -347,7 +347,7 @@ class CardController extends Controller
 
         $validated = $request->validate([
             'file' => 'required|file|max:10240',
-            'file_type' => 'sometimes|string|max:50',
+            'file_type' => 'sometimes|string|max:200',
         ]);
 
         $path = $validated['file']->store('attachments', 'public');
