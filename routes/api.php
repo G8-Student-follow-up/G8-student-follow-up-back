@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ColumnController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\WorkspaceController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -28,9 +29,11 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirectToProvider']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'handleProviderCallback']);
 
-// Workspace Invitations (public — accept/decline via token from email link)
+// Invitations (public — accept/decline via token from email link)
 Route::post('/invitations/workspace/{invitation}/accept', [WorkspaceController::class, 'acceptInvitation']);
 Route::post('/invitations/workspace/{invitation}/decline', [WorkspaceController::class, 'declineInvitation']);
+Route::post('/invitations/board/{invitation}/accept', [BoardController::class, 'acceptInvitation']);
+Route::post('/invitations/board/{invitation}/decline', [BoardController::class, 'declineInvitation']);
 
 // ─────────────────────────────────────────────
 // AUTHENTICATED ROUTES (shared by all roles)
@@ -67,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/boards/{board}/members', [BoardController::class, 'members']);
     Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
     Route::delete('/boards/{board}/members/{userId}', [BoardController::class, 'removeMember']);
+    Route::get('/boards/{board}/invitations', [BoardController::class, 'invitations']);
 
     // Board Labels
     Route::get('/boards/{board}/labels', [LabelController::class, 'index']);
@@ -115,6 +119,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Trainers
     Route::get('/trainers', [ApiUserController::class, 'trainers']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     // Activities
     Route::get('/activities', [ActivityController::class, 'index']);

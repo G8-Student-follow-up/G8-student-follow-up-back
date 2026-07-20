@@ -8,12 +8,20 @@ use App\Models\WorkspaceMember;
 use App\Models\WorkspaceInvitation;
 use App\Models\User;
 use App\Mail\WorkspaceInvitationMail;
+use App\Models\Notification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class WorkspaceController extends Controller
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request)
     {
         $user = $request->user();
@@ -165,6 +173,17 @@ class WorkspaceController extends Controller
             // Email sending failed, but invitation was created
         }
 
+        // Create in-app notification for the invited user
+        $this->notificationService->notifyUser(
+            userId: $userId,
+            actorId: $request->user()->id,
+            type: 'invite',
+            title: 'Workspace Invitation',
+            message: "{$request->user()->name} invited you to join \"{$workspace->name}\"",
+            data: ['workspace_id' => $workspace->id, 'invitation_id' => $invitation->id],
+            actionUrl: "/app/invitations"
+        );
+
         return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully']);
     }
 
@@ -180,6 +199,18 @@ class WorkspaceController extends Controller
         }
 
         $invitation->accept();
+
+        // Clear invitation notifications for this user (fetch and filter in PHP for DB compatibility)
+        Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['workspace_id']) && (int) $notifData['workspace_id'] === (int) $invitation->workspace_id) {
+                    $notif->markAsRead();
+                }
+            });
 
         return response()->json([
             'message' => 'Invitation accepted successfully',
@@ -199,6 +230,18 @@ class WorkspaceController extends Controller
         }
 
         $invitation->decline();
+
+        // Also mark related notifications as read
+        Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['workspace_id']) && (int) $notifData['workspace_id'] === (int) $invitation->workspace_id) {
+                    $notif->markAsRead();
+                }
+            });
 
         return response()->json(['message' => 'Invitation declined']);
     }

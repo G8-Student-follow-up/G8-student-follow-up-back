@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Board;
+use App\Models\BoardInvitation;
 use App\Models\BoardMember;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -147,38 +149,131 @@ class BoardController extends Controller
             );
             $userId = $user->id;
         } else {
-            $userId = $validated['user_id'];
+            $user = User::findOrFail($validated['user_id']);
+            $userId = $user->id;
         }
 
-        $member = BoardMember::create([
-            'board_id' => $board->id,
-            'user_id' => $userId,
-            'role' => $validated['role'] ?? 'member',
-        ]);
+        // Don't invite if the user is already a member
+        if (BoardMember::where(['board_id' => $board->id, 'user_id' => $userId])->exists()) {
+            return response()->json(['message' => 'User is already a member of this board'], 409);
+        }
 
-        $member->load('user');
+        // Create a pending invitation instead of directly adding as member
+        $invitation = BoardInvitation::firstOrCreate(
+            [
+                'board_id' => $board->id,
+                'user_id' => $userId,
+            ],
+            [
+                'invited_by' => $request->user()->id,
+                'status' => 'pending',
+            ]
+        );
+
+        // If invitation already existed and was declined, reset it
+        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+            $invitation->update([
+                'invited_by' => $request->user()->id,
+                'status' => 'pending',
+            ]);
+        }
+
+        $invitation->load('user', 'invitedBy');
 
         if (isset($validated['email'])) {
             try {
-                $url = env('FRONTEND_URL') . "/app/boards?board_id={$board->id}";
-                Mail::to($user->email)->send(new BoardInvitationMail($request->user(), $board, $url));
+                $acceptUrl = env('FRONTEND_URL')
+                    . "/app/invitations/board/{$invitation->id}/accept"
+                    . "?token={$invitation->token}";
+                Mail::to($user->email)->send(new BoardInvitationMail($request->user(), $board, $acceptUrl));
             } catch (\Exception $e) {
-                // Email sending failed, but member was added
+                // Email sending failed, but invitation was created
             }
         }
 
-        return response()->json(['member' => $member], 201);
+        return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully'], 201);
+    }
+
+    public function invitations(Request $request, Board $board)
+    {
+        $this->ensureBoardAccess($board, $request->user());
+
+        $board->load(['invitations' => fn($q) => $q->with('user', 'invitedBy')]);
+
+        return response()->json(['invitations' => $board->invitations]);
+    }
+
+    public function acceptInvitation(Request $request, BoardInvitation $invitation)
+    {
+        $verification = $this->verifyInvitationAccess($request, $invitation);
+        if ($verification !== null) {
+            return $verification;
+        }
+
+        if (!$invitation->isPending()) {
+            return response()->json(['message' => 'Invitation is no longer pending'], 400);
+        }
+
+        $invitation->accept();
+
+        $invitation->load('board');
+
+        return response()->json([
+            'message' => 'Invitation accepted successfully',
+            'board' => $invitation->board,
+        ]);
+    }
+
+    public function declineInvitation(Request $request, BoardInvitation $invitation)
+    {
+        $verification = $this->verifyInvitationAccess($request, $invitation);
+        if ($verification !== null) {
+            return $verification;
+        }
+
+        if (!$invitation->isPending()) {
+            return response()->json(['message' => 'Invitation is no longer pending'], 400);
+        }
+
+        $invitation->decline();
+
+        return response()->json(['message' => 'Invitation declined']);
     }
 
     public function removeMember(Request $request, Board $board, $userId)
     {
         $this->ensureBoardAccess($board, $request->user());
 
-        BoardMember::where('board_id', $board->id)
+        $deleted = DB::table('board_members')
+            ->where('board_id', $board->id)
             ->where('user_id', $userId)
             ->delete();
 
+        if ($deleted === 0) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
+
         return response()->json(null, 204);
+    }
+
+    private function verifyInvitationAccess(Request $request, BoardInvitation $invitation): ?\Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user) {
+            if ($invitation->user_id !== $user->id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            return null;
+        }
+
+        $token = $request->input('token');
+
+        if (!$invitation->token || !$token || $invitation->token !== $token) {
+            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        }
+
+        return null;
     }
 
     private function ensureBoardAccess(Board $board, $user): void
