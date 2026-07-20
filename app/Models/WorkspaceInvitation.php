@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Str;
 
 class WorkspaceInvitation extends Model
 {
@@ -14,11 +15,23 @@ class WorkspaceInvitation extends Model
         'user_id',
         'invited_by',
         'status',
+        'token',
     ];
 
     protected $casts = [
         'status' => 'string',
     ];
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (self $invitation) {
+            if (empty($invitation->token)) {
+                $invitation->token = Str::random(64);
+            }
+        });
+    }
 
     public function workspace()
     {

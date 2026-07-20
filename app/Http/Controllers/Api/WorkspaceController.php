@@ -133,13 +133,16 @@ class WorkspaceController extends Controller
         }
 
         // Create a pending invitation instead of directly adding as member
-        $invitation = WorkspaceInvitation::firstOrCreate([
-            'workspace_id' => $workspace->id,
-            'user_id' => $userId,
-        ], [
-            'invited_by' => $request->user()->id,
-            'status' => 'pending',
-        ]);
+        $invitation = WorkspaceInvitation::firstOrCreate(
+            [
+                'workspace_id' => $workspace->id,
+                'user_id' => $userId,
+            ],
+            [
+                'invited_by' => $request->user()->id,
+                'status' => 'pending',
+            ]
+        );
 
         // If invitation already existed and was declined, reset it
         if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
@@ -153,7 +156,10 @@ class WorkspaceController extends Controller
 
         // Send invitation email
         try {
-            $acceptUrl = env('FRONTEND_URL') . "/app/invitations/workspace/{$invitation->id}/accept";
+            $acceptUrl = env('FRONTEND_URL')
+                . "/app/invitations/workspace/{$invitation->id}/accept"
+                . "?token={$invitation->token}";
+
             Mail::to($user->email)->send(new WorkspaceInvitationMail($request->user(), $workspace, $acceptUrl));
         } catch (\Exception $e) {
             // Email sending failed, but invitation was created
@@ -164,11 +170,9 @@ class WorkspaceController extends Controller
 
     public function acceptInvitation(Request $request, WorkspaceInvitation $invitation)
     {
-        $user = $request->user();
-
-        // Only the invited user can accept
-        if ($invitation->user_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        $verification = $this->verifyInvitationAccess($request, $invitation);
+        if ($verification !== null) {
+            return $verification;
         }
 
         if (!$invitation->isPending()) {
@@ -185,11 +189,9 @@ class WorkspaceController extends Controller
 
     public function declineInvitation(Request $request, WorkspaceInvitation $invitation)
     {
-        $user = $request->user();
-
-        // Only the invited user can decline
-        if ($invitation->user_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        $verification = $this->verifyInvitationAccess($request, $invitation);
+        if ($verification !== null) {
+            return $verification;
         }
 
         if (!$invitation->isPending()) {
@@ -208,7 +210,7 @@ class WorkspaceController extends Controller
         return response()->json(['invitations' => $invitations]);
     }
 
-    public function removeMember(Workspace $workspace, $userId)
+    public function removeMember(Workspace $workspace, User $userId)
     {
         $this->ensureAccess($workspace, request()->user());
 
@@ -219,7 +221,30 @@ class WorkspaceController extends Controller
         return response()->json(null, 204);
     }
 
-    private function ensureAccess(Workspace $workspace, $user): void
+    private function verifyInvitationAccess(Request $request, WorkspaceInvitation $invitation): ?\Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        // If authenticated, verify the user is the invited user
+        if ($user) {
+            if ($invitation->user_id !== $user->id) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            return null;
+        }
+
+        // If not authenticated, require a valid token
+        $token = $request->input('token');
+
+        if (!$invitation->token || !$token || $invitation->token !== $token) {
+            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        }
+
+        return null;
+    }
+
+    private function ensureAccess(Workspace $workspace, User $user): void
     {
         $hasAccess = $workspace->where('id', $workspace->id)
             ->where(function ($q) use ($user) {
