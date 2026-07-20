@@ -38,7 +38,7 @@
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
                                     <td align="center" style="padding:32px 0;">
-                                        <a href="{{ $url }}" class="btn" target="_blank" rel="noopener">View Board</a>
+                                        <a href="{{ $url }}" class="btn" target="_blank" rel="noopener">Accept Invitation</a>
                                     </td>
                                 </tr>
                             </table>
