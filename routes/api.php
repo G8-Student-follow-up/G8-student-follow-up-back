@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ColumnController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\WorkspaceController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -115,6 +116,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Trainers
     Route::get('/trainers', [ApiUserController::class, 'trainers']);
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     // Activities
     Route::get('/activities', [ActivityController::class, 'index']);
