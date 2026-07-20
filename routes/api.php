@@ -28,9 +28,11 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirectToProvider']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'handleProviderCallback']);
 
-// Workspace Invitations (public — accept/decline via token from email link)
+// Invitations (public — accept/decline via token from email link)
 Route::post('/invitations/workspace/{invitation}/accept', [WorkspaceController::class, 'acceptInvitation']);
 Route::post('/invitations/workspace/{invitation}/decline', [WorkspaceController::class, 'declineInvitation']);
+Route::post('/invitations/board/{invitation}/accept', [BoardController::class, 'acceptInvitation']);
+Route::post('/invitations/board/{invitation}/decline', [BoardController::class, 'declineInvitation']);
 
 // ─────────────────────────────────────────────
 // AUTHENTICATED ROUTES (shared by all roles)
@@ -67,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/boards/{board}/members', [BoardController::class, 'members']);
     Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
     Route::delete('/boards/{board}/members/{userId}', [BoardController::class, 'removeMember']);
+    Route::get('/boards/{board}/invitations', [BoardController::class, 'invitations']);
 
     // Board Labels
     Route::get('/boards/{board}/labels', [LabelController::class, 'index']);
