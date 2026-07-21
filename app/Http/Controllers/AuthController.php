@@ -152,6 +152,7 @@ class AuthController extends Controller
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
             'role' => 'sometimes|string|in:admin,trainer',
+            'position' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'telegram' => 'nullable|string|max:255',
             'current_password' => 'required_with:password|string',
