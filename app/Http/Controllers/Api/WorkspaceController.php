@@ -272,30 +272,19 @@ class WorkspaceController extends Controller
 
     private function verifyInvitationAccess(Request $request, WorkspaceInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        // This route is intentionally outside the auth:sanctum middleware group so it also
-        // works for someone clicking the invite link straight from their email before
-        // logging in. But that means $request->user() (the default "web" session guard)
-        // is always null here, even when a valid Bearer token was sent — so we must ask
-        // for the "sanctum" guard explicitly to recognize a logged-in user.
         $user = $request->user('sanctum');
 
-        // If authenticated, verify the user is the invited user
-        if ($user) {
-            if ($invitation->user_id !== $user->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
+        if ($user && $invitation->user_id === $user->id) {
             return null;
         }
 
-        // If not authenticated, require a valid token
         $token = $request->input('token');
 
-        if (!$invitation->token || !$token || $invitation->token !== $token) {
-            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        if ($invitation->token && $token && $invitation->token === $token) {
+            return null;
         }
 
-        return null;
+        return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
     private function ensureAccess(Workspace $workspace, User $user): void

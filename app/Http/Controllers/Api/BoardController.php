@@ -265,25 +265,19 @@ class BoardController extends Controller
 
     private function verifyInvitationAccess(Request $request, BoardInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        // Same reasoning as WorkspaceController::verifyInvitationAccess: this route is
-        // outside auth:sanctum so email-link acceptance works before login, but that means
-        // $request->user() is always null here unless we ask for the sanctum guard directly.
         $user = $request->user('sanctum');
 
-        if ($user) {
-            if ($invitation->user_id !== $user->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+        if ($user && $invitation->user_id === $user->id) {
             return null;
         }
 
         $token = $request->input('token');
 
-        if (!$invitation->token || !$token || $invitation->token !== $token) {
-            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        if ($invitation->token && $token && $invitation->token === $token) {
+            return null;
         }
 
-        return null;
+        return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
     private function ensureBoardAccess(Board $board, $user): void
