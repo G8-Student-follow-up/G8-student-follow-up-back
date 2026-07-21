@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Mail\BoardInvitationMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -181,13 +182,19 @@ class BoardController extends Controller
         $invitation->load('user', 'invitedBy');
 
         if (isset($validated['email'])) {
+            // Queue the invitation email instead of sending it inline. A slow or unreachable
+            // SMTP server (very common on school/shared networks) would otherwise block this
+            // whole request for 30-60+ seconds and make the invite look "broken" even though
+            // the invitation row above was already created successfully.
             try {
                 $acceptUrl = env('FRONTEND_URL')
                     . "/app/invitations/board/{$invitation->id}/accept"
                     . "?token={$invitation->token}";
-                Mail::to($user->email)->send(new BoardInvitationMail($request->user(), $board, $acceptUrl));
-            } catch (\Exception $e) {
-                // Email sending failed, but invitation was created
+                Mail::to($user->email)->queue(new BoardInvitationMail($request->user(), $board, $acceptUrl));
+            } catch (\Throwable $e) {
+                // Email failed to queue, but the invitation still exists — log it instead of
+                // silently losing the failure reason.
+                Log::warning('Board invitation email failed to queue: ' . $e->getMessage());
             }
         }
 
@@ -258,7 +265,10 @@ class BoardController extends Controller
 
     private function verifyInvitationAccess(Request $request, BoardInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        $user = $request->user();
+        // Same reasoning as WorkspaceController::verifyInvitationAccess: this route is
+        // outside auth:sanctum so email-link acceptance works before login, but that means
+        // $request->user() is always null here unless we ask for the sanctum guard directly.
+        $user = $request->user('sanctum');
 
         if ($user) {
             if ($invitation->user_id !== $user->id) {
