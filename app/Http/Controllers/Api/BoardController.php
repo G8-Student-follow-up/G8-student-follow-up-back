@@ -8,6 +8,7 @@ use App\Models\BoardInvitation;
 use App\Models\BoardMember;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,12 @@ use Illuminate\Support\Str;
 
 class BoardController extends Controller
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     public function index(Request $request)
     {
         $user = $request->user();
@@ -198,6 +205,17 @@ class BoardController extends Controller
             }
         }
 
+        // Create in-app notification for the invited user
+        $this->notificationService->notifyUser(
+            userId: $userId,
+            actorId: $request->user()->id,
+            type: 'invite',
+            title: 'Board Invitation',
+            message: "{$request->user()->name} invited you to join \"{$board->title}\"",
+            data: ['board_id' => $board->id, 'invitation_id' => $invitation->id],
+            actionUrl: "/app/invitations"
+        );
+
         return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully'], 201);
     }
 
@@ -225,6 +243,18 @@ class BoardController extends Controller
 
         $invitation->load('board');
 
+        // Clear invitation notifications for this user
+        \App\Models\Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['board_id']) && (int) $notifData['board_id'] === (int) $invitation->board_id) {
+                    $notif->markAsRead();
+                }
+            });
+
         return response()->json([
             'message' => 'Invitation accepted successfully',
             'board' => $invitation->board,
@@ -243,6 +273,18 @@ class BoardController extends Controller
         }
 
         $invitation->decline();
+
+        // Also mark related notifications as read
+        \App\Models\Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['board_id']) && (int) $notifData['board_id'] === (int) $invitation->board_id) {
+                    $notif->markAsRead();
+                }
+            });
 
         return response()->json(['message' => 'Invitation declined']);
     }
