@@ -11,6 +11,7 @@ use App\Mail\WorkspaceInvitationMail;
 use App\Models\Notification;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -163,15 +164,20 @@ class WorkspaceController extends Controller
 
         $invitation->load('user', 'invitedBy');
 
-        // Send invitation email
+        // Queue the invitation email instead of sending it inline. A slow or unreachable
+        // SMTP server (very common on school/shared networks) would otherwise block this
+        // whole request for 30-60+ seconds and make the invite look "broken" even though
+        // the invitation row above was already created successfully.
         try {
             $acceptUrl = env('FRONTEND_URL')
                 . "/app/invitations/workspace/{$invitation->id}/accept"
                 . "?token={$invitation->token}";
 
-            Mail::to($user->email)->send(new WorkspaceInvitationMail($request->user(), $workspace, $acceptUrl));
-        } catch (\Exception $e) {
-            // Email sending failed, but invitation was created
+            Mail::to($user->email)->queue(new WorkspaceInvitationMail($request->user(), $workspace, $acceptUrl));
+        } catch (\Throwable $e) {
+            // Email failed to queue, but the invitation still exists — log it instead of
+            // silently losing the failure reason.
+            Log::warning('Workspace invitation email failed to queue: ' . $e->getMessage());
         }
 
         // Create in-app notification for the invited user
@@ -267,7 +273,12 @@ class WorkspaceController extends Controller
 
     private function verifyInvitationAccess(Request $request, WorkspaceInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        $user = $request->user();
+        // This route is intentionally outside the auth:sanctum middleware group so it also
+        // works for someone clicking the invite link straight from their email before
+        // logging in. But that means $request->user() (the default "web" session guard)
+        // is always null here, even when a valid Bearer token was sent — so we must ask
+        // for the "sanctum" guard explicitly to recognize a logged-in user.
+        $user = $request->user('sanctum');
 
         // If authenticated, verify the user is the invited user
         if ($user) {
