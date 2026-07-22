@@ -5,10 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Models\Student;
+use App\Services\FirebaseTimetableService;
 use Illuminate\Http\Request;
 
 class CalendarController extends Controller
 {
+    public function __construct(protected FirebaseTimetableService $timetable)
+    {
+    }
+
     public function events(Request $request)
     {
         $month = $request->month;
@@ -53,7 +58,15 @@ class CalendarController extends Controller
                 'source' => 'student',
             ]);
 
-        $events = $cards->concat($students)->values();
+        // School timetable, pulled from the PNC Firebase project (cached — see
+        // FirebaseTimetableService). Only attempted when month/year are given,
+        // same as the existing card query above.
+        $schoolEvents = collect();
+        if ($month && $year) {
+            $schoolEvents = collect($this->timetable->getEvents((int) $month, (int) $year));
+        }
+
+        $events = $cards->concat($students)->concat($schoolEvents)->values();
 
         return response()->json(['events' => $events]);
     }
