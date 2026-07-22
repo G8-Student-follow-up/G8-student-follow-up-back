@@ -8,6 +8,7 @@ use App\Models\BoardInvitation;
 use App\Models\BoardMember;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,13 @@ use Illuminate\Support\Str;
 
 class BoardController extends Controller
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -198,7 +206,26 @@ class BoardController extends Controller
             }
         }
 
+        // Create in-app notification for the invited user, so they can accept it
+        // without needing the email if they already have an account.
+        $this->notificationService->notifyUser(
+            userId: $userId,
+            actorId: $request->user()->id,
+            type: 'invite',
+            title: 'Board Invitation',
+            message: "{$request->user()->name} invited you to join \"{$board->title}\"",
+            data: ['board_id' => $board->id, 'invitation_id' => $invitation->id],
+            actionUrl: "/app/invitations"
+        );
+
         return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully'], 201);
+    }
+
+    public function myInvitations(Request $request)
+    {
+        $invitations = $request->user()->pendingBoardInvitations;
+
+        return response()->json(['invitations' => $invitations]);
     }
 
     public function invitations(Request $request, Board $board)

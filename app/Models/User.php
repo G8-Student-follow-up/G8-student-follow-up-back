@@ -88,6 +88,13 @@ class User extends Authenticatable
             ->with('workspace', 'invitedBy');
     }
 
+    public function pendingBoardInvitations()
+    {
+        return $this->hasMany(BoardInvitation::class, 'user_id')
+            ->where('status', 'pending')
+            ->with('board', 'invitedBy');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

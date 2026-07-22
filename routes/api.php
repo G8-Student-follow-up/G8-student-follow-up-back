@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
     Route::delete('/boards/{board}/members/{userId}', [BoardController::class, 'removeMember']);
     Route::get('/boards/{board}/invitations', [BoardController::class, 'invitations']);
+    Route::get('/board-invitations', [BoardController::class, 'myInvitations']);
 
     // Board Labels
     Route::get('/boards/{board}/labels', [LabelController::class, 'index']);

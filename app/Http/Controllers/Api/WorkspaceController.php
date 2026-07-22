@@ -153,11 +153,14 @@ class WorkspaceController extends Controller
             ]
         );
 
-        // If invitation already existed and was declined, reset it
-        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+        // If an invitation row already existed and isn't currently pending
+        // (declined, accepted-but-since-removed, or expired), reset it to a
+        // fresh pending invite with a new token so any old link can't be reused.
+        if (!$invitation->wasRecentlyCreated && $invitation->status !== 'pending') {
             $invitation->update([
                 'invited_by' => $request->user()->id,
                 'status' => 'pending',
+                'token' => Str::random(64),
             ]);
         }
 
@@ -259,13 +262,17 @@ class WorkspaceController extends Controller
         return response()->json(['invitations' => $invitations]);
     }
 
-    public function removeMember(Workspace $workspace, User $userId)
+    public function removeMember(Workspace $workspace, $userId)
     {
         $this->ensureAccess($workspace, request()->user());
 
-        WorkspaceMember::where('workspace_id', $workspace->id)
+        $deleted = WorkspaceMember::where('workspace_id', $workspace->id)
             ->where('user_id', $userId)
             ->delete();
+
+        if ($deleted === 0) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
 
         return response()->json(null, 204);
     }
