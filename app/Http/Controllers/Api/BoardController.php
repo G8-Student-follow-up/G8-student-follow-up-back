@@ -230,7 +230,16 @@ class BoardController extends Controller
 
     public function invitations(Request $request, Board $board)
     {
-        $this->ensureBoardAccess($board, $request->user());
+        $user = $request->user();
+
+        $hasPendingInvite = $board->invitations()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if (!$hasPendingInvite) {
+            $this->ensureBoardAccess($board, $user);
+        }
 
         $board->load(['invitations' => fn($q) => $q->with('user', 'invitedBy')]);
 
