@@ -174,7 +174,9 @@ class StudentController extends Controller
 
         $this->followUpService->logActivity('updated student', $student);
 
-        return response()->json($student);
+        return response()->json(
+            $student->fresh(['classroom', 'trainer', 'comments', 'attachments', 'labels'])
+        );
     }
 
     #[OA\Delete(

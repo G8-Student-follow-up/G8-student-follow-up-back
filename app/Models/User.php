@@ -49,7 +49,11 @@ class User extends Authenticatable
             return $this->avatar;
         }
 
-        return asset('storage/' . $this->avatar);
+        // Add cache-busting parameter to prevent browser caching of old avatars
+        $avatarPath = storage_path('app/public/' . $this->avatar);
+        $timestamp = file_exists($avatarPath) ? filemtime($avatarPath) : time();
+        
+        return asset('storage/' . $this->avatar) . '?v=' . $timestamp;
     }
     public function workspaces()
     {

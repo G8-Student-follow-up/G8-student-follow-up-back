@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -10,8 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('ALTER TABLE comments MODIFY student_id BIGINT UNSIGNED NULL');
-        DB::statement('ALTER TABLE attachments MODIFY student_id BIGINT UNSIGNED NULL');
+        Schema::table('comments', function (Blueprint $table) {
+            $table->foreignId('student_id')->nullable()->change();
+        });
+
+        Schema::table('attachments', function (Blueprint $table) {
+            $table->foreignId('student_id')->nullable()->change();
+        });
     }
 
     /**
@@ -19,7 +25,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement('ALTER TABLE comments MODIFY student_id BIGINT UNSIGNED NOT NULL');
-        DB::statement('ALTER TABLE attachments MODIFY student_id BIGINT UNSIGNED NOT NULL');
+        Schema::table('comments', function (Blueprint $table) {
+            $table->foreignId('student_id')->nullable(false)->change();
+        });
+
+        Schema::table('attachments', function (Blueprint $table) {
+            $table->foreignId('student_id')->nullable(false)->change();
+        });
     }
 };

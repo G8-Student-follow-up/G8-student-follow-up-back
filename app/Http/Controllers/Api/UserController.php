@@ -59,11 +59,52 @@ class UserController extends BaseController
         return $this->successResponse($user, 'User created successfully', 201);
     }
 
-    public function trainers()
+    public function trainers(Request $request)
     {
-        $users = User::where('role', 'trainer')->get(['id', 'name', 'email', 'avatar']);
+        $query = User::where('role', 'trainer');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $limit = min((int) $request->query('limit', 10), 50);
+
+        $users = $query
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name', 'email', 'avatar']);
 
         return response()->json(['users' => $users]);
+    }
+
+    public function trainerEmailSuggestions(Request $request)
+    {
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'limit' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $search = $validated['search'] ?? '';
+        $limit = $validated['limit'] ?? 10;
+
+        $query = User::where('role', 'trainer');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $suggestions = $query
+            ->orderBy('email')
+            ->limit($limit)
+            ->get(['id', 'name', 'email', 'avatar']);
+
+        return response()->json(['suggestions' => $suggestions]);
     }
 
     /**

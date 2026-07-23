@@ -119,6 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/calendar/events', [CalendarController::class, 'events']);
 
     // Trainers
+    Route::get('/trainers/email-suggestions', [ApiUserController::class, 'trainerEmailSuggestions']);
     Route::get('/trainers', [ApiUserController::class, 'trainers']);
 
     // Notifications

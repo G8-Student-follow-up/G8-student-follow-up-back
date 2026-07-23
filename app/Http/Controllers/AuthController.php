@@ -148,6 +148,13 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        \Log::info('UpdateUser called', [
+            'user_id' => $user->id,
+            'has_avatar' => $request->hasFile('avatar'),
+            'all_files' => $request->allFiles(),
+            'all_input' => $request->all()
+        ]);
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => ['sometimes', 'email', Rule::unique('users')->ignore($user->id)],
@@ -155,8 +162,14 @@ class AuthController extends Controller
             'position' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'telegram' => 'nullable|string|max:255',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'current_password' => 'required_with:password|string',
             'password' => 'sometimes|string|min:8|confirmed',
+        ]);
+
+        \Log::info('Validated data', [
+            'has_avatar_in_validated' => isset($validated['avatar']),
+            'avatar_type' => isset($validated['avatar']) ? get_class($validated['avatar']) : 'N/A'
         ]);
 
         if (isset($validated['password'])) {
@@ -165,9 +178,16 @@ class AuthController extends Controller
             }
         }
 
-        $updateData = array_filter($validated, fn($key) => !in_array($key, ['current_password', 'password_confirmation']), ARRAY_FILTER_USE_KEY);
-
-        $user->update($updateData);
+        // Handle avatar upload if present
+        if (isset($validated['avatar'])) {
+            \Log::info('Processing avatar upload');
+            $user = $this->userService->update($user, $validated);
+            \Log::info('Avatar uploaded', ['new_avatar' => $user->avatar]);
+        } else {
+            \Log::info('No avatar in request, updating other fields only');
+            $updateData = array_filter($validated, fn($key) => !in_array($key, ['current_password', 'password_confirmation']), ARRAY_FILTER_USE_KEY);
+            $user->update($updateData);
+        }
 
         return response()->json([
             'user' => $user,
