@@ -18,6 +18,27 @@ Tokens are returned on register/login and never expire by default.
 
 ## Endpoints
 
+### Trash
+
+Deleted boards and cards are retained in Trash until they are permanently deleted. All Trash endpoints require a Bearer token.
+
+```
+GET /api/trash
+```
+
+Returns a frontend-friendly combined `items` list plus separate `boards` and `cards` arrays. Each combined item has `id`, `type` (`board` or `card`), `title`, `deleted_at`, and `data`.
+
+```
+POST /api/trash/boards/{id}/restore
+DELETE /api/trash/boards/{id}
+POST /api/trash/cards/{id}/restore
+DELETE /api/trash/cards/{id}
+```
+
+The `POST` endpoints restore the item. The `DELETE` endpoints permanently remove an item that is already in Trash. A card whose board is still deleted must be restored after its board.
+
+---
+
 ### 1. Register
 
 Create a new user account.
