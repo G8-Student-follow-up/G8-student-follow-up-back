@@ -13,7 +13,8 @@ class Comment extends Model
         'student_id',
         'card_id',
         'user_id',
-        'message'
+        'message',
+        'is_pinned',
     ];
 
     public function student()

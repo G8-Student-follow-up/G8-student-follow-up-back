@@ -104,6 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
     Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
     Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
+    Route::put('/comments/{comment}/pin', [CardController::class, 'pinComment']);
     Route::get('/cards/{card}/labels', [CardController::class, 'labels']);
     Route::post('/cards/{card}/labels', [CardController::class, 'addLabel']);
     Route::delete('/cards/{card}/labels/{labelId}', [CardController::class, 'removeLabel']);
