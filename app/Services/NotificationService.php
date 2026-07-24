@@ -191,4 +191,43 @@ class NotificationService
             Log::debug('Failed to push notification to socket server: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Notify mentioned users in a comment.
+     */
+    public function notifyMentionedUsers(
+        array $mentionedUserIds,
+        int $actorId,
+        string $message,
+        Card $card
+    ): void {
+        $actor = User::find($actorId);
+        
+        foreach ($mentionedUserIds as $userId) {
+            // Create in-app notification
+            $this->createNotification(
+                userId: $userId,
+                type: 'mention',
+                title: 'You were mentioned',
+                message: $actor?->name . ' mentioned you in a comment: ' . $message,
+                userName: $actor?->name,
+                userAvatar: $actor?->avatar_url,
+                data: [
+                    'card_id' => $card->id,
+                    'board_id' => $card->board_id,
+                    'workspace_id' => $card->board->workspace_id,
+                ],
+                actionUrl: '/app/boards/' . $card->board_id
+            );
+
+            // Send email notification
+            try {
+                \Mail::to(User::find($userId))->send(
+                    new \App\Mail\MentionNotificationMail($actor, $card, $message)
+                );
+            } catch (\Exception $e) {
+                Log::debug('Failed to send mention email: ' . $e->getMessage());
+            }
+        }
+    }
 }

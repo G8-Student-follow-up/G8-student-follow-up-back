@@ -227,7 +227,55 @@ class CardController extends Controller
             actionUrl: '/app/boards/' . $card->board_id
         );
 
+        // Detect and notify mentioned users
+        $mentionedUserIds = $this->extractMentionedUserIds($validated['message']);
+        if (!empty($mentionedUserIds)) {
+            $this->notificationService->notifyMentionedUsers(
+                mentionedUserIds: $mentionedUserIds,
+                actorId: $request->user()->id,
+                message: $validated['message'],
+                card: $card
+            );
+        }
+
         return response()->json(['comment' => $comment], 201);
+    }
+
+    /**
+     * Extract user IDs from @mentions in the message.
+     * Supports formats: @username, @email, @userId
+     */
+    private function extractMentionedUserIds(string $message): array
+    {
+        $mentionedUserIds = [];
+        
+        // Match @username patterns (alphanumeric, underscores, hyphens, spaces)
+        preg_match_all('/@([\w\s-]+?)(?=\s|$|[.,!?;:])/', $message, $usernameMatches);
+        
+        if (!empty($usernameMatches[1])) {
+            $usernames = array_map('trim', $usernameMatches[1]);
+            $users = \App\Models\User::whereIn('name', $usernames)->get();
+            
+            foreach ($users as $user) {
+                $mentionedUserIds[] = $user->id;
+            }
+        }
+        
+        // Match @email patterns
+        preg_match_all('/@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', $message, $emailMatches);
+        
+        if (!empty($emailMatches[1])) {
+            $emails = $emailMatches[1];
+            $users = \App\Models\User::whereIn('email', $emails)->get();
+            
+            foreach ($users as $user) {
+                if (!in_array($user->id, $mentionedUserIds)) {
+                    $mentionedUserIds[] = $user->id;
+                }
+            }
+        }
+        
+        return array_unique($mentionedUserIds);
     }
 
     public function updateComment(Request $request, Comment $comment)
@@ -252,6 +300,17 @@ class CardController extends Controller
             'subject_id' => $comment->id,
             'changes' => ['description' => "updated a comment on card \"{$comment->card->title}\""],
         ]);
+
+        // Detect and notify mentioned users in updated comment
+        $mentionedUserIds = $this->extractMentionedUserIds($validated['message']);
+        if (!empty($mentionedUserIds)) {
+            $this->notificationService->notifyMentionedUsers(
+                mentionedUserIds: $mentionedUserIds,
+                actorId: $request->user()->id,
+                message: $validated['message'],
+                card: $comment->card
+            );
+        }
 
         return response()->json(['comment' => $comment]);
     }
