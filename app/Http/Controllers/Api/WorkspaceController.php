@@ -209,17 +209,7 @@ class WorkspaceController extends Controller
 
         $invitation->accept();
 
-        // Clear invitation notifications for this user (fetch and filter in PHP for DB compatibility)
-        Notification::forUser($invitation->user_id)
-            ->where('type', 'invite')
-            ->where('is_read', false)
-            ->get()
-            ->each(function ($notif) use ($invitation) {
-                $notifData = $notif->data ?? [];
-                if (isset($notifData['workspace_id']) && (int) $notifData['workspace_id'] === (int) $invitation->workspace_id) {
-                    $notif->markAsRead();
-                }
-            });
+        $this->clearInvitationNotifications($invitation);
 
         return response()->json([
             'message' => 'Invitation accepted successfully',
@@ -240,17 +230,7 @@ class WorkspaceController extends Controller
 
         $invitation->decline();
 
-        // Also mark related notifications as read
-        Notification::forUser($invitation->user_id)
-            ->where('type', 'invite')
-            ->where('is_read', false)
-            ->get()
-            ->each(function ($notif) use ($invitation) {
-                $notifData = $notif->data ?? [];
-                if (isset($notifData['workspace_id']) && (int) $notifData['workspace_id'] === (int) $invitation->workspace_id) {
-                    $notif->markAsRead();
-                }
-            });
+        $this->clearInvitationNotifications($invitation);
 
         return response()->json(['message' => 'Invitation declined']);
     }
@@ -294,16 +274,28 @@ class WorkspaceController extends Controller
         return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
+    private function clearInvitationNotifications(WorkspaceInvitation $invitation): void
+    {
+        Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['workspace_id']) && (int) $notifData['workspace_id'] === (int) $invitation->workspace_id) {
+                    $notif->markAsRead();
+                }
+            });
+    }
+
     private function ensureAccess(Workspace $workspace, User $user): void
     {
-        $hasAccess = $workspace->where('id', $workspace->id)
+        $hasAccess = Workspace::where('id', $workspace->id)
             ->where(function ($q) use ($user) {
                 $q->where('owner_id', $user->id)
                   ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
             })->exists();
 
-        if (!$hasAccess) {
-            abort(403, 'Forbidden');
-        }
+        abort_unless($hasAccess, 403, 'Forbidden');
     }
 }

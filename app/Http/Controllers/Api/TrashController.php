@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Traits\ChecksBoardAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Card;
@@ -10,6 +11,8 @@ use Illuminate\Http\Request;
 
 class TrashController extends Controller
 {
+    use ChecksBoardAccess;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -86,19 +89,6 @@ class TrashController extends Controller
         return Workspace::where('owner_id', $user->id)
             ->orWhereHas('members', fn ($query) => $query->where('user_id', $user->id))
             ->pluck('id');
-    }
-
-    private function ensureBoardAccess(Board $board, $user): void
-    {
-        $hasWorkspaceAccess = $board->workspace()
-            ->where(function ($query) use ($user) {
-                $query->where('owner_id', $user->id)
-                    ->orWhereHas('members', fn ($memberQuery) => $memberQuery->where('user_id', $user->id));
-            })->exists();
-
-        $hasBoardMembership = $board->members()->where('user_id', $user->id)->exists();
-
-        abort_unless($hasWorkspaceAccess || $hasBoardMembership, 403, 'Forbidden');
     }
 
     private function item(string $type, Board|Card $model): array

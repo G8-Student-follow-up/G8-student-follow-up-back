@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Card;
 use App\Models\Column;
-use App\Models\Label;
-use App\Models\Workspace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,37 +17,74 @@ class DashboardController extends Controller
         $months = max(1, min(24, (int) ($request->months ?? 6)));
 
         $isAdmin = $user->role === 'admin';
-        $boardAccess = function ($q) use ($user, $isAdmin) {
-            if ($isAdmin) return;
-            $q->whereHas('workspace', fn($w) => $w->where('created_by', $user->id)
-                ->orWhereHas('members', fn($m) => $m->where('user_id', $user->id)))
-              ->orWhereHas('members', fn($b) => $b->where('user_id', $user->id));
-        };
 
-        $totalBoards = Board::where($boardAccess)->count();
-        $totalCards = Card::whereHas('board', $boardAccess)->count();
-        $pendingCards = Card::where('status', 'Pending')->whereHas('board', $boardAccess)->count();
-        $completedCards = Card::where('status', 'Completed')->whereHas('board', $boardAccess)->count();
-        $totalColumns = Column::whereHas('board', $boardAccess)->count();
-        $totalLabels = Label::whereHas('board', $boardAccess)->count();
-        $totalWorkspaces = $isAdmin ? Workspace::count() : Workspace::where(function ($q) use ($user) {
-            $q->where('created_by', $user->id)
-              ->orWhereHas('members', fn($m) => $m->where('user_id', $user->id));
-        })->count();
-        $myCards = $isAdmin ? $totalCards : Card::where('created_by', $user->id)->count();
-        $myPendingCards = $isAdmin ? $pendingCards : Card::where('created_by', $user->id)->where('status', 'Pending')->count();
-
-        $statuses = ['Completed', 'In Progress', 'Pending', 'Archived'];
-        $statusColors = ['Completed' => '#10b981', 'In Progress' => '#2563eb', 'Pending' => '#f59e0b', 'Archived' => '#ef4444'];
-        $statusBreakdown = [];
-        foreach ($statuses as $s) {
-            $statusBreakdown[] = [
-                'label' => $s,
-                'value' => Card::where('status', $s)->whereHas('board', $boardAccess)->count(),
-                'color' => $statusColors[$s],
-            ];
+        // Build a list of accessible board IDs once, then reuse everywhere.
+        // This avoids ~11 separate WHERE HAS subqueries and cuts DB calls to 3-4.
+        if ($isAdmin) {
+            $boardIds = Board::pluck('id');
+        } else {
+            $boardIds = Board::where(function ($q) use ($user) {
+                    $q->whereHas('workspace', fn($w) => $w->where('owner_id', $user->id)
+                        ->orWhereHas('members', fn($m) => $m->where('user_id', $user->id)))
+                      ->orWhereHas('members', fn($b) => $b->where('user_id', $user->id));
+                })
+                ->pluck('id');
         }
 
+        if ($boardIds->isEmpty()) {
+            return response()->json([
+                'total_boards' => 0,
+                'total_cards' => 0,
+                'total_labels' => 0,
+                'total_workspaces' => 0,
+                'completed_follow_ups' => 0,
+                'total_columns' => 0,
+                'my_cards' => 0,
+                'my_pending_cards' => 0,
+                'status_breakdown' => [
+                    ['label' => 'Out of follow-ups', 'value' => 0, 'color' => '#2563eb'],
+                    ['label' => 'In follow-ups', 'value' => 0, 'color' => '#ec4899'],
+                ],
+                'trend_data' => [],
+            ]);
+        }
+
+        $totalBoards = $boardIds->count();
+        $totalColumns = Column::whereIn('board_id', $boardIds)->count();
+
+        // Single aggregate query for all card stats
+        $cardTotals = Card::whereIn('board_id', $boardIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress,
+                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'Archived' THEN 1 ELSE 0 END) as archived
+            ")
+            ->first();
+
+        $totalCards = (int) ($cardTotals->total ?? 0);
+        $pendingCards = (int) ($cardTotals->pending ?? 0);
+        $inProgressCards = (int) ($cardTotals->in_progress ?? 0);
+        $completedCards = (int) ($cardTotals->completed ?? 0);
+
+        $myCards = $isAdmin
+            ? $totalCards
+            : Card::whereIn('board_id', $boardIds)->where('created_by', $user->id)->count();
+
+        $myPendingCards = $isAdmin
+            ? $pendingCards
+            : Card::whereIn('board_id', $boardIds)->where('created_by', $user->id)->where('status', 'Pending')->count();
+
+        $totalInFollowUp = $pendingCards + $inProgressCards;
+        $totalOutOfFollowUp = $completedCards;
+
+        $statusBreakdown = [
+            ['label' => 'Out of follow-ups', 'value' => $completedCards, 'color' => '#2563eb'],
+            ['label' => 'In follow-ups', 'value' => $pendingCards + $inProgressCards, 'color' => '#ec4899'],
+        ];
+
+        // Trend data — single query with driver-specific date formatting
         $driver = DB::connection()->getDriverName();
         if ($driver === 'mysql') {
             $trendData = Card::selectRaw("
@@ -59,8 +94,8 @@ class DashboardController extends Controller
                     SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending
                 ")
+                ->whereIn('board_id', $boardIds)
                 ->where('created_at', '>=', now()->subMonths($months))
-                ->whereHas('board', $boardAccess)
                 ->groupBy(DB::raw("DATE_FORMAT(created_at, '%Y-%m')"), DB::raw("DATE_FORMAT(created_at, '%b %Y')"))
                 ->orderBy(DB::raw("MIN(created_at)"))
                 ->get();
@@ -71,8 +106,8 @@ class DashboardController extends Controller
                     SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed,
                     SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending
                 ")
+                ->whereIn('board_id', $boardIds)
                 ->where('created_at', '>=', now()->subMonths($months))
-                ->whereHas('board', $boardAccess)
                 ->groupBy(DB::raw("strftime('%Y-%m', created_at)"))
                 ->orderBy('month')
                 ->get()
@@ -86,8 +121,8 @@ class DashboardController extends Controller
         return response()->json([
             'total_boards' => $totalBoards,
             'total_cards' => $totalCards,
-            'total_labels' => $totalLabels,
-            'total_workspaces' => $totalWorkspaces,
+            'total_labels' => $totalInFollowUp,
+            'total_workspaces' => $totalOutOfFollowUp,
             'completed_follow_ups' => $completedCards,
             'total_columns' => $totalColumns,
             'my_cards' => $myCards,

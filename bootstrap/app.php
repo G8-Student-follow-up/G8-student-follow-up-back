@@ -16,8 +16,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'trainer' => \App\Http\Middleware\TrainerMiddleware::class,
-            'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
 
         // Prevent Authenticate middleware from crashing when there is no
