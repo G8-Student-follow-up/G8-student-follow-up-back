@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Traits\ChecksBoardAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Column;
@@ -9,6 +10,8 @@ use Illuminate\Http\Request;
 
 class ColumnController extends Controller
 {
+    use ChecksBoardAccess;
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -18,6 +21,9 @@ class ColumnController extends Controller
             'color' => 'nullable|string|max:20',
         ]);
 
+        $board = Board::findOrFail($validated['board_id']);
+        $this->ensureBoardAccess($board, $request->user());
+
         $column = Column::create($validated);
 
         return response()->json(['column' => $column], 201);
@@ -25,6 +31,8 @@ class ColumnController extends Controller
 
     public function update(Request $request, Column $column)
     {
+        $this->ensureBoardAccess($column->board, $request->user());
+
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
             'position' => 'nullable|integer',
@@ -35,8 +43,10 @@ class ColumnController extends Controller
         return response()->json(['column' => $column]);
     }
 
-    public function destroy(Column $column)
+    public function destroy(Request $request, Column $column)
     {
+        $this->ensureBoardAccess($column->board, $request->user());
+
         $column->delete();
 
         return response()->json(null, 204);
@@ -44,6 +54,8 @@ class ColumnController extends Controller
 
     public function reorder(Request $request, Board $board)
     {
+        $this->ensureBoardAccess($board, $request->user());
+
         $validated = $request->validate([
             'columns' => 'required|array',
             'columns.*.id' => 'required|exists:columns,id',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Traits\ChecksBoardAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\BoardInvitation;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
 
 class BoardController extends Controller
 {
+    use ChecksBoardAccess;
+
     protected NotificationService $notificationService;
 
     public function __construct(NotificationService $notificationService)
@@ -316,31 +319,5 @@ class BoardController extends Controller
         return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
-    private function ensureBoardAccess(Board $board, $user): void
-    {
-        $hasWorkspaceAccess = $board->workspace()
-            ->where(function ($q) use ($user) {
-                $q->where('owner_id', $user->id)
-                    ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
-            })->exists();
 
-        $hasBoardMembership = $board->members()->where('user_id', $user->id)->exists();
-
-        if (!$hasWorkspaceAccess && !$hasBoardMembership) {
-            abort(403);
-        }
-    }
-
-    private function ensureWorkspaceAccess(int $workspaceId, $user): void
-    {
-        $hasAccess = \App\Models\Workspace::where('id', $workspaceId)
-            ->where(function ($q) use ($user) {
-                $q->where('owner_id', $user->id)
-                    ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
-            })->exists();
-
-        if (!$hasAccess) {
-            abort(403);
-        }
-    }
 }

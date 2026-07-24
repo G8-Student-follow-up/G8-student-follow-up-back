@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Traits\ChecksBoardAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Board;
@@ -17,6 +18,8 @@ use Illuminate\Validation\Rule;
 
 class CardController extends Controller
 {
+    use ChecksBoardAccess;
+
     protected NotificationService $notificationService;
 
     public function __construct(NotificationService $notificationService)
@@ -382,18 +385,5 @@ class CardController extends Controller
         return response()->json(null, 204);
     }
 
-    private function ensureBoardAccess(Board $board, $user): void
-    {
-        $hasWorkspaceAccess = $board->workspace()
-            ->where(function ($q) use ($user) {
-                $q->where('owner_id', $user->id)
-                  ->orWhereHas('members', fn($mq) => $mq->where('user_id', $user->id));
-            })->exists();
 
-        $hasBoardMembership = $board->members()->where('user_id', $user->id)->exists();
-
-        if (!$hasWorkspaceAccess && !$hasBoardMembership) {
-            abort(403, 'Forbidden');
-        }
-    }
 }
