@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\CardController;
 use App\Http\Controllers\Api\ChecklistController;
+use App\Http\Controllers\Api\CommentHistoryController;
 use App\Models\Attachment;
 use App\Http\Controllers\Api\ColumnController;
 use App\Http\Controllers\Api\LabelController;
@@ -102,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cards/{card}/move', [CardController::class, 'move']);
     Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
     Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
+    Route::get('/trainers/comments', [CommentHistoryController::class, 'index']);
     Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
     Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
     Route::get('/cards/{card}/labels', [CardController::class, 'labels']);
