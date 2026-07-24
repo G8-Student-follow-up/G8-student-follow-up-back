@@ -205,7 +205,8 @@ class BoardController extends Controller
             }
         }
 
-        // Create in-app notification for the invited user
+        // Create in-app notification for the invited user, so they can accept it
+        // without needing the email if they already have an account.
         $this->notificationService->notifyUser(
             userId: $userId,
             actorId: $request->user()->id,
@@ -219,9 +220,25 @@ class BoardController extends Controller
         return response()->json(['invitation' => $invitation, 'message' => 'Invitation sent successfully'], 201);
     }
 
+    public function myInvitations(Request $request)
+    {
+        $invitations = $request->user()->pendingBoardInvitations;
+
+        return response()->json(['invitations' => $invitations]);
+    }
+
     public function invitations(Request $request, Board $board)
     {
-        $this->ensureBoardAccess($board, $request->user());
+        $user = $request->user();
+
+        $hasPendingInvite = $board->invitations()
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if (!$hasPendingInvite) {
+            $this->ensureBoardAccess($board, $user);
+        }
 
         $board->load(['invitations' => fn($q) => $q->with('user', 'invitedBy')]);
 
@@ -307,25 +324,19 @@ class BoardController extends Controller
 
     private function verifyInvitationAccess(Request $request, BoardInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        // Same reasoning as WorkspaceController::verifyInvitationAccess: this route is
-        // outside auth:sanctum so email-link acceptance works before login, but that means
-        // $request->user() is always null here unless we ask for the sanctum guard directly.
         $user = $request->user('sanctum');
 
-        if ($user) {
-            if ($invitation->user_id !== $user->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
+        if ($user && $invitation->user_id === $user->id) {
             return null;
         }
 
         $token = $request->input('token');
 
-        if (!$invitation->token || !$token || $invitation->token !== $token) {
-            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        if ($invitation->token && $token && $invitation->token === $token) {
+            return null;
         }
 
-        return null;
+        return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
     private function ensureBoardAccess(Board $board, $user): void

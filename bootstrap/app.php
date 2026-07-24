@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'trainer' => \App\Http\Middleware\TrainerMiddleware::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
+
+        // Prevent Authenticate middleware from crashing when there is no
+        // named 'login' route. The withExceptions handler below returns a
+        // proper JSON 401 for API requests regardless of this URL.
+        $middleware->redirectGuestsTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, Request $request) {

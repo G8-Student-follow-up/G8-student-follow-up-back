@@ -61,7 +61,6 @@ class WorkspaceController extends Controller
         ]);
 
         $validated['owner_id'] = $request->user()->id;
-        $validated['created_by'] = $request->user()->id;
 
         $workspace = Workspace::create($validated);
 
@@ -154,11 +153,14 @@ class WorkspaceController extends Controller
             ]
         );
 
-        // If invitation already existed and was declined, reset it
-        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+        // If an invitation row already existed and isn't currently pending
+        // (declined, accepted-but-since-removed, or expired), reset it to a
+        // fresh pending invite with a new token so any old link can't be reused.
+        if (!$invitation->wasRecentlyCreated && $invitation->status !== 'pending') {
             $invitation->update([
                 'invited_by' => $request->user()->id,
                 'status' => 'pending',
+                'token' => Str::random(64),
             ]);
         }
 
@@ -260,43 +262,36 @@ class WorkspaceController extends Controller
         return response()->json(['invitations' => $invitations]);
     }
 
-    public function removeMember(Workspace $workspace, User $userId)
+    public function removeMember(Workspace $workspace, $userId)
     {
         $this->ensureAccess($workspace, request()->user());
 
-        WorkspaceMember::where('workspace_id', $workspace->id)
+        $deleted = WorkspaceMember::where('workspace_id', $workspace->id)
             ->where('user_id', $userId)
             ->delete();
+
+        if ($deleted === 0) {
+            return response()->json(['message' => 'Member not found'], 404);
+        }
 
         return response()->json(null, 204);
     }
 
     private function verifyInvitationAccess(Request $request, WorkspaceInvitation $invitation): ?\Illuminate\Http\JsonResponse
     {
-        // This route is intentionally outside the auth:sanctum middleware group so it also
-        // works for someone clicking the invite link straight from their email before
-        // logging in. But that means $request->user() (the default "web" session guard)
-        // is always null here, even when a valid Bearer token was sent — so we must ask
-        // for the "sanctum" guard explicitly to recognize a logged-in user.
         $user = $request->user('sanctum');
 
-        // If authenticated, verify the user is the invited user
-        if ($user) {
-            if ($invitation->user_id !== $user->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-
+        if ($user && $invitation->user_id === $user->id) {
             return null;
         }
 
-        // If not authenticated, require a valid token
         $token = $request->input('token');
 
-        if (!$invitation->token || !$token || $invitation->token !== $token) {
-            return response()->json(['message' => 'Invalid or missing invitation token'], 401);
+        if ($invitation->token && $token && $invitation->token === $token) {
+            return null;
         }
 
-        return null;
+        return response()->json(['message' => 'Invalid or missing invitation token'], 401);
     }
 
     private function ensureAccess(Workspace $workspace, User $user): void

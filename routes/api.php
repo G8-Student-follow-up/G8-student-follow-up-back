@@ -10,6 +10,7 @@ use App\Models\Attachment;
 use App\Http\Controllers\Api\ColumnController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\TrashController;
 use App\Http\Controllers\Api\UserController as ApiUserController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\WorkspaceController;
@@ -48,6 +49,13 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::bind('attachment', fn($value) => Attachment::findOrFail($value));
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Trash
+    Route::get('/trash', [TrashController::class, 'index']);
+    Route::post('/trash/boards/{board}/restore', [TrashController::class, 'restoreBoard']);
+    Route::delete('/trash/boards/{board}', [TrashController::class, 'forceDeleteBoard']);
+    Route::post('/trash/cards/{card}/restore', [TrashController::class, 'restoreCard']);
+    Route::delete('/trash/cards/{card}', [TrashController::class, 'forceDeleteCard']);
+
     // Workspaces
     Route::get('/workspaces', [WorkspaceController::class, 'index']);
     Route::get('/workspaces/{workspace}', [WorkspaceController::class, 'show']);
@@ -71,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/boards/{board}/members', [BoardController::class, 'addMember']);
     Route::delete('/boards/{board}/members/{userId}', [BoardController::class, 'removeMember']);
     Route::get('/boards/{board}/invitations', [BoardController::class, 'invitations']);
+    Route::get('/board-invitations', [BoardController::class, 'myInvitations']);
 
     // Board Labels
     Route::get('/boards/{board}/labels', [LabelController::class, 'index']);
