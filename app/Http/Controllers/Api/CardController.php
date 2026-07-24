@@ -292,6 +292,33 @@ class CardController extends Controller
             'changes' => ['description' => "updated a comment on card \"{$comment->card->title}\""],
         ]);
 
+        // Broadcast real-time update
+        $board = $comment->card->board;
+        $board->loadMissing('workspace.members', 'members');
+        $userIds = collect();
+        if ($board->workspace) {
+            $userIds = $userIds->merge($board->workspace->members->pluck('user_id'));
+            if ($board->workspace->owner_id) $userIds->push($board->workspace->owner_id);
+        }
+        $userIds = $userIds->merge($board->members->pluck('user_id'))
+            ->unique()
+            ->filter(fn($id) => (int) $id !== (int) $request->user()->id);
+
+        foreach ($userIds as $userId) {
+            $notif = \App\Models\Notification::create([
+                'user_id' => $userId,
+                'type' => 'comment',
+                'title' => 'Comment Updated',
+                'message' => $request->user()->name . ' updated a comment on "' . $comment->card->title . '"',
+                'user_name' => $request->user()->name,
+                'user_avatar' => $request->user()->avatar_url,
+                'data' => ['card_id' => $comment->card_id, 'board_id' => $comment->card->board_id, 'comment_id' => $comment->id, 'action' => 'updated'],
+                'action_url' => '/app/boards/' . $comment->card->board_id,
+                'is_read' => false,
+            ]);
+            $this->notificationService->broadcastToSocket($userId, $notif);
+        }
+
         return response()->json(['comment' => $comment]);
     }
 
@@ -301,6 +328,33 @@ class CardController extends Controller
 
         $comment->update(['is_pinned' => !$comment->is_pinned]);
         $comment->load('user');
+
+        $action = $comment->is_pinned ? 'pinned' : 'unpinned';
+        $board = $comment->card->board;
+        $board->loadMissing('workspace.members', 'members');
+        $userIds = collect();
+        if ($board->workspace) {
+            $userIds = $userIds->merge($board->workspace->members->pluck('user_id'));
+            if ($board->workspace->owner_id) $userIds->push($board->workspace->owner_id);
+        }
+        $userIds = $userIds->merge($board->members->pluck('user_id'))
+            ->unique()
+            ->filter(fn($id) => (int) $id !== (int) $request->user()->id);
+
+        foreach ($userIds as $userId) {
+            $notif = \App\Models\Notification::create([
+                'user_id' => $userId,
+                'type' => 'comment',
+                'title' => $comment->is_pinned ? 'Comment Pinned' : 'Comment Unpinned',
+                'message' => $request->user()->name . " {$action} a comment on \"" . $comment->card->title . '"',
+                'user_name' => $request->user()->name,
+                'user_avatar' => $request->user()->avatar_url,
+                'data' => ['card_id' => $comment->card_id, 'board_id' => $comment->card->board_id, 'comment_id' => $comment->id, 'action' => $action],
+                'action_url' => '/app/boards/' . $comment->card->board_id,
+                'is_read' => false,
+            ]);
+            $this->notificationService->broadcastToSocket($userId, $notif);
+        }
 
         return response()->json(['comment' => $comment]);
     }
