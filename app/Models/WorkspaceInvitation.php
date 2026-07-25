@@ -53,11 +53,6 @@ class WorkspaceInvitation extends Model
         return $this->status === 'pending';
     }
 
-    public function isAccepted(): bool
-    {
-        return $this->status === 'accepted';
-    }
-
     public function accept(): void
     {
         $this->update(['status' => 'accepted']);

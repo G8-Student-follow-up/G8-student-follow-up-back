@@ -20,11 +20,6 @@ class Label extends Model
         return $this->belongsTo(Board::class);
     }
 
-    public function students()
-    {
-        return $this->belongsToMany(Student::class, 'student_labels');
-    }
-
     public function cards()
     {
         return $this->belongsToMany(Card::class, 'card_labels');

@@ -28,11 +28,6 @@ class Activity extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function subject()
-    {
-        return $this->morphTo();
-    }
-
     public function getUserNameAttribute(): string
     {
         return $this->user?->name ?? 'Unknown';

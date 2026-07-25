@@ -17,10 +17,11 @@ class Comment extends Model
         'is_pinned',
     ];
 
-    public function student()
-    {
-        return $this->belongsTo(Student::class);
-    }
+    protected $casts = [
+        'is_pinned' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 
     public function card()
     {
@@ -30,5 +31,10 @@ class Comment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function activity()
+    {
+        return $this->hasOne(CommentActivity::class);
     }
 }

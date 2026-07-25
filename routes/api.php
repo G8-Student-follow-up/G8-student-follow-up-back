@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\CardController;
 use App\Http\Controllers\Api\ChecklistController;
+use App\Http\Controllers\Api\CommentHistoryController;
 use App\Models\Attachment;
 use App\Http\Controllers\Api\ColumnController;
 use App\Http\Controllers\Api\LabelController;
@@ -112,6 +113,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cards/{card}/checklists', [CardController::class, 'addChecklist']);
     Route::get('/cards/{card}/attachments', [CardController::class, 'attachments']);
     Route::post('/cards/{card}/attachments', [CardController::class, 'addAttachment']);
+
+    // Comments
+    Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
+    Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
+    Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
+    Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
+    Route::put('/comments/{comment}/pin', [CardController::class, 'togglePin']);
+
+    // Comment History
+    Route::get('/comment-history', [CommentHistoryController::class, 'index']);
+    Route::get('/comment-history/activity', [CommentHistoryController::class, 'activity']);
+
+    // Trainers (legacy)
+    Route::get('/trainers/comments', [CommentHistoryController::class, 'index']);
 
     // Attachments
     Route::delete('/attachments/{attachment}', [CardController::class, 'destroyAttachment']);

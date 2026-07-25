@@ -30,11 +30,6 @@ class Board extends Model
         return $this->belongsTo(Workspace::class);
     }
 
-    public function classes()
-    {
-        return $this->hasMany(ClassRoom::class, 'board_id');
-    }
-
     public function columns()
     {
         return $this->hasMany(Column::class);

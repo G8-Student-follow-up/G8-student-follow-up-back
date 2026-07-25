@@ -71,16 +71,6 @@ class User extends Authenticatable
         return $this->hasMany(Card::class, 'created_by');
     }
 
-    public function boardMemberships()
-    {
-        return $this->hasMany(BoardMember::class);
-    }
-
-    public function activities()
-    {
-        return $this->hasMany(Activity::class);
-    }
-
     public function pendingWorkspaceInvitations()
     {
         return $this->hasMany(WorkspaceInvitation::class, 'user_id')
@@ -98,10 +88,5 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
-    }
-
-    public function isTrainer(): bool
-    {
-        return $this->role === 'trainer';
     }
 }
