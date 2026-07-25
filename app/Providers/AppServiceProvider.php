@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
+use App\Models\Comment;
+use App\Observers\CommentObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Comment::observe(CommentObserver::class);
+
         ResetPassword::createUrlUsing(function ($user, string $token) {
             return env('FRONTEND_URL')
                 . '/reset-password?token=' . $token

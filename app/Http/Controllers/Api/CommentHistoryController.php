@@ -6,25 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\Comment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\CommentActivity;
 
 class CommentHistoryController extends Controller
 {
-    /**
-     * Get the authenticated user's comment history across accessible boards.
-     *
-     * @queryParam workspace_id int Filter by workspace (scopes to boards within that workspace).
-     * @queryParam month string Filter by month (YYYY-MM format).
-     * @queryParam search string Search within comment text, card title, student name, or board name.
-     * @queryParam per_page int Results per page (1-100, default 50).
-     * @queryParam page int Page number.
-     */
     public function index(Request $request)
     {
         $user = $request->user();
-        $month = $request->query('month');
+        $month = $request->query('month');       // e.g. "2026-07"
+        $day = $request->query('day');            // e.g. "2026-07-24"
         $search = $request->query('search');
         $workspaceId = $request->query('workspace_id');
+        $cardId = $request->query('card_id');
         $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
         $page = max((int) $request->query('page', 1), 1);
 
@@ -45,10 +38,17 @@ class CommentHistoryController extends Controller
         $query = $this->commentHistoryQuery($user->id, $boardIds)
             ->orderBy('comments.created_at', 'desc');
 
-        if ($month && preg_match('/^\d{4}-\d{2}$/', $month)) {
-            [$year, $monthNumber] = explode('-', $month);
-            $query->whereYear('comments.created_at', (int) $year)
-                ->whereMonth('comments.created_at', (int) $monthNumber);
+        if ($day && preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            // Day filter takes priority over month filter when both are given.
+            $query->where('comment_activities.activity_date', $day);
+        } elseif ($month && preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $query->where('comment_activities.activity_month', $month);
+        }
+
+        if ($cardId) {
+            // All comments for a single card within the selected month/day,
+            // so a card's whole history for that period comes back together.
+            $query->where('comments.card_id', (int) $cardId);
         }
 
         $this->applySearch($query, $search);
@@ -67,6 +67,8 @@ class CommentHistoryController extends Controller
             'user_avatar' => $comment->user_avatar,
             'text' => $comment->message,
             'created_at' => $comment->created_at?->toISOString(),
+            'activity_date' => $comment->activity_date,
+            'activity_month' => $comment->activity_month,
         ]);
 
         return response()->json([
@@ -75,9 +77,53 @@ class CommentHistoryController extends Controller
                 'total' => $paginator->total(),
                 'per_page' => $perPage,
                 'last_page' => $paginator->lastPage(),
-                'months_available' => $this->getMonthsAvailable($user->id, $boardIds, $search),
+                'months_available' => $this->getMonthsAvailable($user->id, $boardIds, $search, $cardId),
             ],
         ]);
+    }
+
+    /**
+     * Per-day comment counts for a given month, e.g. for a calendar heatmap.
+     * GET /comment-history/activity?month=2026-07&workspace_id=...
+     */
+    public function activity(Request $request)
+    {
+        $user = $request->user();
+        $month = $request->query('month');
+        $workspaceId = $request->query('workspace_id');
+        $cardId = $request->query('card_id');
+
+        if (!$month || !preg_match('/^\d{4}-\d{2}$/', $month)) {
+            return response()->json(['message' => 'A valid month (YYYY-MM) is required.'], 422);
+        }
+
+        $boardIds = $this->getAccessibleBoardIds($user->id, $workspaceId);
+
+        if (empty($boardIds)) {
+            return response()->json(['data' => []]);
+        }
+
+        $query = CommentActivity::query()
+            ->selectRaw('activity_date, count(*) as comment_count')
+            ->where('user_id', $user->id)
+            ->whereIn('board_id', $boardIds)
+            ->where('activity_month', $month);
+
+        if ($cardId) {
+            $query->where('card_id', (int) $cardId);
+        }
+
+        $byDay = $query->groupBy('activity_date')
+            ->orderBy('activity_date')
+            ->get()
+            ->map(fn($row) => [
+                'date' => $row->activity_date instanceof \DateTimeInterface
+                    ? $row->activity_date->format('Y-m-d')
+                    : (string) $row->activity_date,
+                'comment_count' => (int) $row->comment_count,
+            ]);
+
+        return response()->json(['data' => $byDay]);
     }
 
     private function commentHistoryQuery(int $userId, array $boardIds)
@@ -95,7 +141,10 @@ class CommentHistoryController extends Controller
             'boards.workspace_id',
             'users.name as user_name',
             'users.avatar as user_avatar',
+            'comment_activities.activity_date',
+            'comment_activities.activity_month',
         ])
+            ->join('comment_activities', 'comment_activities.comment_id', '=', 'comments.id')
             ->join('cards', 'comments.card_id', '=', 'cards.id')
             ->leftJoin('students', 'cards.student_id', '=', 'students.id')
             ->join('boards', 'cards.board_id', '=', 'boards.id')
@@ -137,32 +186,27 @@ class CommentHistoryController extends Controller
         return $query->pluck('id')->all();
     }
 
-    private function getMonthsAvailable(int $userId, array $boardIds, ?string $search = null): array
+    private function getMonthsAvailable(int $userId, array $boardIds, ?string $search = null, $cardId = null): array
     {
         $query = Comment::query()
-            ->selectRaw($this->monthExpression() . ' as month')
+            ->join('comment_activities', 'comment_activities.comment_id', '=', 'comments.id')
             ->join('cards', 'comments.card_id', '=', 'cards.id')
             ->leftJoin('students', 'cards.student_id', '=', 'students.id')
             ->join('boards', 'cards.board_id', '=', 'boards.id')
             ->where('comments.user_id', $userId)
             ->whereIn('boards.id', $boardIds);
 
+        if ($cardId) {
+            $query->where('comments.card_id', (int) $cardId);
+        }
+
         $this->applySearch($query, $search);
 
-        return $query->groupBy('month')
+        return $query->select('comment_activities.activity_month as month')
+            ->groupBy('month')
             ->orderBy('month', 'desc')
             ->pluck('month')
             ->map(fn($m) => (string) $m)
             ->all();
-    }
-
-    private function monthExpression(): string
-    {
-        return match (DB::connection()->getDriverName()) {
-            'sqlite' => "strftime('%Y-%m', comments.created_at)",
-            'pgsql' => "to_char(comments.created_at, 'YYYY-MM')",
-            'sqlsrv' => "FORMAT(comments.created_at, 'yyyy-MM')",
-            default => "DATE_FORMAT(comments.created_at, '%Y-%m')",
-        };
     }
 }

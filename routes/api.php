@@ -101,11 +101,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cards/{card}', [CardController::class, 'update']);
     Route::delete('/cards/{card}', [CardController::class, 'destroy']);
     Route::put('/cards/{card}/move', [CardController::class, 'move']);
-    Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
-    Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
-    Route::get('/trainers/comments', [CommentHistoryController::class, 'index']);
-    Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
-    Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
     Route::get('/cards/{card}/labels', [CardController::class, 'labels']);
     Route::post('/cards/{card}/labels', [CardController::class, 'addLabel']);
     Route::delete('/cards/{card}/labels/{labelId}', [CardController::class, 'removeLabel']);
@@ -113,6 +108,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cards/{card}/checklists', [CardController::class, 'addChecklist']);
     Route::get('/cards/{card}/attachments', [CardController::class, 'attachments']);
     Route::post('/cards/{card}/attachments', [CardController::class, 'addAttachment']);
+
+    // Comments
+    Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
+    Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
+    Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
+    Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
+    Route::put('/comments/{comment}/pin', [CardController::class, 'togglePin']);
+
+    // Comment History
+    Route::get('/comment-history', [CommentHistoryController::class, 'index']);
+    Route::get('/comment-history/activity', [CommentHistoryController::class, 'activity']);
+
+    // Trainers (legacy)
+    Route::get('/trainers/comments', [CommentHistoryController::class, 'index']);
 
     // Attachments
     Route::delete('/attachments/{attachment}', [CardController::class, 'destroyAttachment']);

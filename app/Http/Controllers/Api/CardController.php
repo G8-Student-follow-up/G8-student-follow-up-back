@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Traits\ChecksBoardAccess;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCommentRequest;
+use App\Http\Requests\UpdateCommentRequest;
 use App\Models\Activity;
 use App\Models\Board;
 use App\Models\Card;
@@ -11,6 +13,7 @@ use App\Models\Column;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\Checklist;
+use App\Http\Resources\CommentResource;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -193,21 +196,19 @@ class CardController extends Controller
         $this->ensureBoardAccess($card->board, request()->user());
         $card->load('comments.user');
 
-        return response()->json(['comments' => $card->comments]);
+        return response()->json([
+            'comments' => CommentResource::collection($card->comments),
+        ]);
     }
 
-    public function addComment(Request $request, Card $card)
+    public function addComment(StoreCommentRequest $request, Card $card)
     {
         $this->ensureBoardAccess($card->board, $request->user());
-
-        $validated = $request->validate([
-            'message' => 'required|string',
-        ]);
 
         $comment = Comment::create([
             'card_id' => $card->id,
             'user_id' => $request->user()->id,
-            'message' => $validated['message'],
+            'message' => $request->input('message'),
         ]);
 
         $comment->load('user');
@@ -225,27 +226,21 @@ class CardController extends Controller
             actorId: $request->user()->id,
             type: 'comment',
             title: 'New Comment',
-            message: $request->user()->name . ' commented: ' . $validated['message'],
+            message: $request->user()->name . ' commented: ' . $request->input('message'),
             data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'comment_id' => $comment->id],
             actionUrl: '/app/boards/' . $card->board_id
         );
 
-        return response()->json(['comment' => $comment], 201);
+        return response()->json([
+            'comment' => new CommentResource($comment),
+        ], 201);
     }
 
-    public function updateComment(Request $request, Comment $comment)
+    public function updateComment(UpdateCommentRequest $request, Comment $comment)
     {
-        if ($comment->user_id !== $request->user()->id) {
-            abort(403);
-        }
-
         $this->ensureBoardAccess($comment->card->board, $request->user());
 
-        $validated = $request->validate([
-            'message' => 'required|string',
-        ]);
-
-        $comment->update(['message' => $validated['message']]);
+        $comment->update(['message' => $request->input('message')]);
         $comment->load('user');
 
         Activity::create([
@@ -256,13 +251,15 @@ class CardController extends Controller
             'changes' => ['description' => "updated a comment on card \"{$comment->card->title}\""],
         ]);
 
-        return response()->json(['comment' => $comment]);
+        return response()->json([
+            'comment' => new CommentResource($comment),
+        ]);
     }
 
     public function destroyComment(Request $request, Comment $comment)
     {
         if ($comment->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'You are not authorized to delete this comment.');
         }
 
         $this->ensureBoardAccess($comment->card->board, $request->user());
@@ -385,5 +382,22 @@ class CardController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Toggle the pin status on a comment.
+     * PUT /api/comments/{comment}/pin
+     */
+    public function togglePin(Request $request, Comment $comment)
+    {
+        $this->ensureBoardAccess($comment->card->board, $request->user());
 
+        $comment->update([
+            'is_pinned' => !$comment->is_pinned,
+        ]);
+
+        $comment->load('user');
+
+        return response()->json([
+            'comment' => new CommentResource($comment),
+        ]);
+    }
 }

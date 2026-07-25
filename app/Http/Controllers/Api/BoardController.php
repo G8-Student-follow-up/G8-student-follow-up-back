@@ -9,6 +9,7 @@ use App\Models\BoardInvitation;
 use App\Models\BoardMember;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
+use App\Http\Resources\CommentResource;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,6 +67,18 @@ class BoardController extends Controller
             'members.user',
             'labels',
         ]);
+
+        // Transform comments using CommentResource so they match the frontend format
+        $board->columns->each(function ($column) {
+            $column->cards->each(function ($card) {
+                if ($card->relationLoaded('comments')) {
+                    $card->setRelation(
+                        'comments',
+                        CommentResource::collection($card->comments)->resolve()
+                    );
+                }
+            });
+        });
 
         return response()->json(['board' => $board]);
     }
