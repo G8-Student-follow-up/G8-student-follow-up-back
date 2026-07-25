@@ -129,6 +129,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Trainers
     Route::get('/trainers', [ApiUserController::class, 'trainers']);
+    Route::get('/invited-emails', [ApiUserController::class, 'invitedEmails']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);

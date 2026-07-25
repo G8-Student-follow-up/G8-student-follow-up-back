@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\BaseController;
+use App\Models\BoardInvitation;
 use App\Models\User;
+use App\Models\WorkspaceInvitation;
 use App\Services\UserService;
 use Illuminate\Http\Request;
 
@@ -64,6 +66,24 @@ class UserController extends BaseController
         $users = User::where('role', 'trainer')->get(['id', 'name', 'email', 'avatar']);
 
         return response()->json(['users' => $users]);
+    }
+
+    public function invitedEmails(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $workspaceIds = WorkspaceInvitation::where('invited_by', $userId)->pluck('user_id');
+        $boardIds = BoardInvitation::where('invited_by', $userId)->pluck('user_id');
+
+        $allIds = $workspaceIds->merge($boardIds)->unique()->filter();
+
+        if ($allIds->isEmpty()) {
+            return response()->json(['emails' => []]);
+        }
+
+        $emails = User::whereIn('id', $allIds)->pluck('email')->unique()->values();
+
+        return response()->json(['emails' => $emails]);
     }
 
     /**

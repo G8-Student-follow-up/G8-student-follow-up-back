@@ -231,15 +231,15 @@ class CardController extends Controller
             type: 'comment',
             title: 'New Comment',
             message: $request->user()->name . ' commented: ' . $validated['message'],
-            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'comment_id' => $comment->id],
-            actionUrl: '/app/boards/' . $card->board_id
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id, 'comment_id' => $comment->id],
+            actionUrl: '/app/boards?board_id=' . $card->board_id . '&workspace_id=' . $card->board->workspace_id . '&card_id=' . $card->id
         );
 
         // Handle mention notifications
         if (!empty($validated['mentioned_user_ids'])) {
             $actor = $request->user();
             $commentSnippet = strip_tags(substr($validated['message'], 0, 200));
-            $actionUrl = '/app/boards/' . $card->board_id;
+            $actionUrl = config('app.frontend_url') . '/app/boards?board_id=' . $card->board_id . '&workspace_id=' . $card->board->workspace_id . '&card_id=' . $card->id . '&comment_id=' . $comment->id;
 
             $mentionedUsers = User::whereIn('id', $validated['mentioned_user_ids'])->get();
 
@@ -252,7 +252,7 @@ class CardController extends Controller
                     message: $actor->name . ' mentioned you in "' . $card->title . '"',
                     userName: $actor->name,
                     userAvatar: $actor->avatar_url,
-                    data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'comment_id' => $comment->id, 'type' => 'mention'],
+                    data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id, 'comment_id' => $comment->id, 'type' => 'mention'],
                     actionUrl: $actionUrl
                 );
 
