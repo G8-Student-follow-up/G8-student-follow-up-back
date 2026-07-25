@@ -13,11 +13,14 @@ use App\Models\Column;
 use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\Checklist;
-use App\Http\Resources\CommentResource;
+use App\Mail\MentionNotificationMail;
+use App\Models\User;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Http\Resources\CommentResource;
 
 class CardController extends Controller
 {
@@ -205,6 +208,12 @@ class CardController extends Controller
     {
         $this->ensureBoardAccess($card->board, $request->user());
 
+        $validated = $request->validate([
+            'message' => 'required|string',
+            'mentioned_user_ids' => 'sometimes|array',
+            'mentioned_user_ids.*' => 'integer|exists:users,id',
+        ]);
+
         $comment = Comment::create([
             'card_id' => $card->id,
             'user_id' => $request->user()->id,
@@ -226,14 +235,43 @@ class CardController extends Controller
             actorId: $request->user()->id,
             type: 'comment',
             title: 'New Comment',
-            message: $request->user()->name . ' commented: ' . $request->input('message'),
-            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'comment_id' => $comment->id],
-            actionUrl: '/app/boards/' . $card->board_id
+            message: $request->user()->name . ' commented: ' . $validated['message'],
+            data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id, 'comment_id' => $comment->id],
+            actionUrl: '/app/boards?board_id=' . $card->board_id . '&workspace_id=' . $card->board->workspace_id . '&card_id=' . $card->id
         );
 
-        return response()->json([
-            'comment' => new CommentResource($comment),
-        ], 201);
+        // Handle mention notifications
+        if (!empty($validated['mentioned_user_ids'])) {
+            $actor = $request->user();
+            $commentSnippet = strip_tags(substr($validated['message'], 0, 200));
+            $actionUrl = config('app.frontend_url') . '/app/boards?board_id=' . $card->board_id . '&workspace_id=' . $card->board->workspace_id . '&card_id=' . $card->id . '&comment_id=' . $comment->id;
+
+            $mentionedUsers = User::whereIn('id', $validated['mentioned_user_ids'])->get();
+
+            foreach ($mentionedUsers as $mentionedUser) {
+                // Create in-app notification
+                $this->notificationService->createNotification(
+                    userId: $mentionedUser->id,
+                    type: 'mention',
+                    title: 'You have been mentioned in a comment',
+                    message: $actor->name . ' mentioned you in "' . $card->title . '"',
+                    userName: $actor->name,
+                    userAvatar: $actor->avatar_url,
+                    data: ['card_id' => $card->id, 'board_id' => $card->board_id, 'workspace_id' => $card->board->workspace_id, 'comment_id' => $comment->id, 'type' => 'mention'],
+                    actionUrl: $actionUrl
+                );
+
+                // Send email notification
+                Mail::to($mentionedUser->email)->queue(new MentionNotificationMail(
+                    mentionedBy: $actor,
+                    card: $card,
+                    commentSnippet: $commentSnippet,
+                    actionUrl: $actionUrl
+                ));
+            }
+        }
+
+        return response()->json(['comment' => $comment], 201);
     }
 
     public function updateComment(UpdateCommentRequest $request, Comment $comment)
@@ -251,9 +289,71 @@ class CardController extends Controller
             'changes' => ['description' => "updated a comment on card \"{$comment->card->title}\""],
         ]);
 
-        return response()->json([
-            'comment' => new CommentResource($comment),
-        ]);
+        // Broadcast real-time update
+        $board = $comment->card->board;
+        $board->loadMissing('workspace.members', 'members');
+        $userIds = collect();
+        if ($board->workspace) {
+            $userIds = $userIds->merge($board->workspace->members->pluck('user_id'));
+            if ($board->workspace->owner_id) $userIds->push($board->workspace->owner_id);
+        }
+        $userIds = $userIds->merge($board->members->pluck('user_id'))
+            ->unique()
+            ->filter(fn($id) => (int) $id !== (int) $request->user()->id);
+
+        foreach ($userIds as $userId) {
+            $notif = \App\Models\Notification::create([
+                'user_id' => $userId,
+                'type' => 'comment',
+                'title' => 'Comment Updated',
+                'message' => $request->user()->name . ' updated a comment on "' . $comment->card->title . '"',
+                'user_name' => $request->user()->name,
+                'user_avatar' => $request->user()->avatar_url,
+                'data' => ['card_id' => $comment->card_id, 'board_id' => $comment->card->board_id, 'comment_id' => $comment->id, 'action' => 'updated'],
+                'action_url' => '/app/boards/' . $comment->card->board_id,
+                'is_read' => false,
+            ]);
+            $this->notificationService->broadcastToSocket($userId, $notif);
+        }
+
+        return response()->json(['comment' => $comment]);
+    }
+
+    public function pinComment(Request $request, Comment $comment)
+    {
+        $this->ensureBoardAccess($comment->card->board, $request->user());
+
+        $comment->update(['is_pinned' => !$comment->is_pinned]);
+        $comment->load('user');
+
+        $action = $comment->is_pinned ? 'pinned' : 'unpinned';
+        $board = $comment->card->board;
+        $board->loadMissing('workspace.members', 'members');
+        $userIds = collect();
+        if ($board->workspace) {
+            $userIds = $userIds->merge($board->workspace->members->pluck('user_id'));
+            if ($board->workspace->owner_id) $userIds->push($board->workspace->owner_id);
+        }
+        $userIds = $userIds->merge($board->members->pluck('user_id'))
+            ->unique()
+            ->filter(fn($id) => (int) $id !== (int) $request->user()->id);
+
+        foreach ($userIds as $userId) {
+            $notif = \App\Models\Notification::create([
+                'user_id' => $userId,
+                'type' => 'comment',
+                'title' => $comment->is_pinned ? 'Comment Pinned' : 'Comment Unpinned',
+                'message' => $request->user()->name . " {$action} a comment on \"" . $comment->card->title . '"',
+                'user_name' => $request->user()->name,
+                'user_avatar' => $request->user()->avatar_url,
+                'data' => ['card_id' => $comment->card_id, 'board_id' => $comment->card->board_id, 'comment_id' => $comment->id, 'action' => $action],
+                'action_url' => '/app/boards/' . $comment->card->board_id,
+                'is_read' => false,
+            ]);
+            $this->notificationService->broadcastToSocket($userId, $notif);
+        }
+
+        return response()->json(['comment' => $comment]);
     }
 
     public function destroyComment(Request $request, Comment $comment)

@@ -58,7 +58,7 @@ class BoardController extends Controller
             'workspace',
             'columns' => fn($q) => $q->orderBy('position'),
             'columns.cards' => fn($q) => $q->orderBy('position'),
-            'columns.cards.comments' => fn($q) => $q->with('user')->latest(),
+            'columns.cards.comments' => fn($q) => $q->with('user')->latest()->take(5),
             'columns.cards.attachments',
             'columns.cards.checklists' => fn($q) => $q->with('items'),
             'columns.cards.labels',

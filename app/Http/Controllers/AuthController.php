@@ -235,6 +235,14 @@ class AuthController extends Controller
             ->where('provider_id', $socialUser->getId())
             ->first();
 
+        if ($user) {
+            // Refresh avatar from provider on each login
+            $avatar = $socialUser->getAvatar();
+            if ($avatar && $user->avatar !== $avatar) {
+                $user->update(['avatar' => $avatar]);
+            }
+        }
+
         // If not found by provider, check by email
         if (!$user) {
             $user = User::where('email', $socialUser->getEmail())->first();
@@ -244,7 +252,7 @@ class AuthController extends Controller
                 $user->update([
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
-                    'avatar' => $user->avatar ?? ($socialUser->getAvatar() ?: null),
+                    'avatar' => $user->avatar ?: ($socialUser->getAvatar() ?: null),
                 ]);
             } else {
                 // Create a new user from social data
