@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Card;
+use App\Models\Comment;
+use App\Models\Attachment;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
-use App\Models\Comment;
+use Illuminate\Support\Facades\Route;
 use App\Observers\CommentObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,5 +33,9 @@ class AppServiceProvider extends ServiceProvider
                 . '/reset-password?token=' . $token
                 . '&email=' . urlencode($user->email);
         });
+
+        Route::bind('card', fn($value) => Card::with('board.workspace')->findOrFail($value));
+        Route::bind('comment', fn($value) => Comment::with('card.board')->findOrFail($value));
+        Route::bind('attachment', fn($value) => Attachment::with('card.board')->findOrFail($value));
     }
 }

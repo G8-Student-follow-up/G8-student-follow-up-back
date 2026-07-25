@@ -101,6 +101,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/cards/{card}', [CardController::class, 'update']);
     Route::delete('/cards/{card}', [CardController::class, 'destroy']);
     Route::put('/cards/{card}/move', [CardController::class, 'move']);
+    Route::get('/cards/{card}/comments', [CardController::class, 'comments']);
+    Route::post('/cards/{card}/comments', [CardController::class, 'addComment']);
+    Route::put('/comments/{comment}', [CardController::class, 'updateComment']);
+    Route::delete('/comments/{comment}', [CardController::class, 'destroyComment']);
+    Route::put('/comments/{comment}/pin', [CardController::class, 'pinComment']);
     Route::get('/cards/{card}/labels', [CardController::class, 'labels']);
     Route::post('/cards/{card}/labels', [CardController::class, 'addLabel']);
     Route::delete('/cards/{card}/labels/{labelId}', [CardController::class, 'removeLabel']);
@@ -139,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Trainers
     Route::get('/trainers', [ApiUserController::class, 'trainers']);
+    Route::get('/invited-emails', [ApiUserController::class, 'invitedEmails']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);

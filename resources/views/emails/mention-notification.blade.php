@@ -7,7 +7,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="color-scheme" content="light dark">
     <meta name="supported-color-schemes" content="light dark">
-    <title>Reset Your Password</title>
+    <title>You were mentioned</title>
     <!--[if mso]>
 <noscript>
 <xml>
@@ -56,7 +56,7 @@
             display: inline-block;
             width: 44px;
             height: 44px;
-            background: #2563eb;
+            background: #7c3aed;
             border-radius: 12px;
             text-align: center;
             line-height: 44px;
@@ -67,7 +67,7 @@
         }
         .btn {
             display: inline-block;
-            background: #2563eb;
+            background: #7c3aed;
             color: #ffffff !important;
             text-decoration: none;
             padding: 15px 48px;
@@ -75,11 +75,11 @@
             font-weight: 600;
             font-size: 15px;
             letter-spacing: 0.2px;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
         }
         .btn:hover {
-            background: #1d4ed8;
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+            background: #6d28d9;
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
         }
         @media only screen and (max-width: 600px) {
             .container {
@@ -117,7 +117,14 @@
                 border-color: #1e293b !important;
             }
             .card-section-text {
-                color: #94a3b8 !important;
+                color: #cbd5e1 !important;
+            }
+            .quote-bg {
+                background-color: #0d1321 !important;
+                border-color: #4c1d95 !important;
+            }
+            .quote-text {
+                color: #cbd5e1 !important;
             }
             .footer-text {
                 color: #475569 !important;
@@ -126,7 +133,7 @@
                 border-color: #1e293b !important;
             }
             .muted-link {
-                color: #6366f1 !important;
+                color: #a78bfa !important;
             }
         }
     </style>
@@ -136,7 +143,7 @@
 
     <!-- Preheader -->
     <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#f4f5f7;">
-        Reset your password — this link expires in 60 minutes.
+        {{ $mentionedBy->name }} mentioned you in "{{ $card->title }}"
     </div>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="wrapper-bg">
@@ -147,14 +154,14 @@
 
                     <!-- Top accent line -->
                     <tr>
-                        <td style="background:#2563eb;height:4px;font-size:0;line-height:0;">&nbsp;</td>
+                        <td style="background:#7c3aed;height:4px;font-size:0;line-height:0;"></td>
                     </tr>
 
                     <!-- Logo + Title -->
                     <tr>
                         <td class="logo-area" align="center" style="padding:44px 48px 0 48px;">
-                            <span class="logo-badge" style="display:inline-block;width:44px;height:44px;background:#2563eb;border-radius:12px;text-align:center;line-height:44px;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">SFS</span>
-                            <h1 class="heading-text" style="margin:20px 0 0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Reset your password</h1>
+                            <span class="logo-badge" style="display:inline-block;width:44px;height:44px;background:#7c3aed;border-radius:12px;text-align:center;line-height:44px;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">SFS</span>
+                            <h1 class="heading-text" style="margin:20px 0 0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">You were mentioned</h1>
                         </td>
                     </tr>
 
@@ -163,49 +170,42 @@
                         <td class="content-pad" style="padding:24px 48px 40px 48px;">
 
                             <p class="body-text" style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#475569;">
-                                Hi <strong style="color:#0f172a;">{{ $user->name }}</strong>,
+                                <strong style="color:#0f172a;">{{ $mentionedBy->name }}</strong> mentioned you in a comment on
+                                <strong style="color:#0f172a;">{{ $card->title }}</strong>.
                             </p>
 
-                            <p class="body-text" style="margin:0 0 32px;font-size:15px;line-height:1.7;color:#475569;">
-                                We received a request to reset the password for your Student Follow-up System account. Click the button below to choose a new password.
-                            </p>
+                            <!-- Comment snippet -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 32px;">
+                                <tr>
+                                    <td class="quote-bg quote-text" style="padding:18px 22px;background:#f8fafc;border:1px solid #e8ecf1;border-left:3px solid #7c3aed;border-radius:10px;font-size:14px;line-height:1.65;color:#334155;font-style:italic;">
+                                        {{ $commentSnippet }}
+                                    </td>
+                                </tr>
+                            </table>
 
                             <!-- Button -->
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                 <tr>
                                     <td align="center" style="padding:0 0 36px 0;">
                                         <!--[if mso]>
-<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $url }}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="60%" strokecolor="#2563eb" fillcolor="#2563eb">
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $actionUrl }}" style="height:50px;v-text-anchor:middle;width:240px;" arcsize="60%" strokecolor="#7c3aed" fillcolor="#7c3aed">
 <w:anchorlock/>
-<center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:600;">Reset Password</center>
+<center style="color:#ffffff;font-family:sans-serif;font-size:15px;font-weight:600;">View Comment</center>
 </v:roundrect>
 <![endif]-->
                                         <!--[if !mso]><!-->
-                                        <a href="{{ $url }}" class="btn" target="_blank" rel="noopener">Reset Password</a>
+                                        <a href="{{ $actionUrl }}" class="btn" target="_blank" rel="noopener">View Comment</a>
                                         <!--<![endif]-->
                                     </td>
                                 </tr>
                             </table>
 
-                            <!-- Info card -->
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                                <tr>
-                                    <td class="card-section-bg card-section-text" style="padding:16px 20px;background:#f8fafc;border:1px solid #e8ecf1;border-radius:12px;font-size:13px;line-height:1.6;color:#64748b;">
-                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                                            <tr>
-                                                <td style="vertical-align:top;padding-right:10px;font-size:16px;">&#9202;</td>
-                                                <td>This link will expire in <strong style="color:#0f172a;">60 minutes</strong>. If you did not request this, simply ignore this email and your password will remain unchanged.</td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <hr class="divider" style="border:none;border-top:1px solid #e8ecf1;margin:32px 0 20px;">
+                            <hr class="divider" style="border:none;border-top:1px solid #e8ecf1;margin:0 0 20px;">
 
                             <p class="footer-text" style="font-size:12px;color:#94a3b8;margin:0;line-height:1.6;word-break:break-all;">
-                                If the button doesn't work, copy and paste this link:<br>
-                                <a class="muted-link" href="{{ $url }}" style="color:#2563eb;text-decoration:underline;">{{ $url }}</a>
+                                You are receiving this because someone mentioned you in a comment.<br><br>
+                                Or open directly:
+                                <a class="muted-link" href="{{ $actionUrl }}" style="color:#7c3aed;text-decoration:underline;">{{ $actionUrl }}</a>
                             </p>
                         </td>
                     </tr>

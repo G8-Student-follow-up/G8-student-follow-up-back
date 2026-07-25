@@ -175,7 +175,7 @@ class NotificationService
      * Send a real-time notification push to the socket server.
      * The socket server will emit the notification to the user's connected sockets.
      */
-    protected function broadcastToSocket(int $userId, Notification $notification): void
+    public function broadcastToSocket(int $userId, Notification $notification): void
     {
         if (!$this->socketHost) {
             return;
