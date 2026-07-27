@@ -58,7 +58,7 @@ class BoardController extends Controller
             'workspace',
             'columns' => fn($q) => $q->orderBy('position'),
             'columns.cards' => fn($q) => $q->orderBy('position'),
-            'columns.cards.comments' => fn($q) => $q->with('user')->latest()->take(5),
+            'columns.cards.comments' => fn($q) => $q->with('user')->latest()->take(50),
             'columns.cards.attachments',
             'columns.cards.checklists' => fn($q) => $q->with('items'),
             'columns.cards.labels',
@@ -74,7 +74,7 @@ class BoardController extends Controller
                 if ($card->relationLoaded('comments')) {
                     $card->setRelation(
                         'comments',
-                        CommentResource::collection($card->comments)->resolve()
+                        collect(CommentResource::collection($card->comments)->resolve())
                     );
                 }
             });
