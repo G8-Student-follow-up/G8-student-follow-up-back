@@ -286,6 +286,10 @@ class WorkspaceController extends Controller
             return response()->json(['message' => 'Member not found'], 404);
         }
 
+        WorkspaceInvitation::where('workspace_id', $workspace->id)
+            ->where('user_id', $userId)
+            ->delete();
+
         return response()->json(null, 204);
     }
 

@@ -352,6 +352,10 @@ class BoardController extends Controller
             return response()->json(['message' => 'Member not found'], 404);
         }
 
+        BoardInvitation::where('board_id', $board->id)
+            ->where('user_id', $userId)
+            ->delete();
+
         return response()->json(null, 204);
     }
 
