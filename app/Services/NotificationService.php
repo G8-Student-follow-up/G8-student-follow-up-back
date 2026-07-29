@@ -174,21 +174,53 @@ class NotificationService
     /**
      * Send a real-time notification push to the socket server.
      * The socket server will emit the notification to the user's connected sockets.
+     * @param int $userId The target user ID
+     * @param Notification $notification The notification to push
+     * @param string|null $eventType An optional additional event type to emit alongside "notification"
      */
-    public function broadcastToSocket(int $userId, Notification $notification): void
+    public function broadcastToSocket(int $userId, Notification $notification, ?string $eventType = null): void
     {
         if (!$this->socketHost) {
             return;
         }
 
         try {
-            Http::timeout(1)->post($this->socketHost . '/emit', [
+            $payload = [
                 'userId' => (string) $userId,
                 'notification' => $notification->toArray(),
-            ]);
+            ];
+            if ($eventType) {
+                $payload['eventType'] = $eventType;
+            }
+            Http::timeout(1)->post($this->socketHost . '/emit', $payload);
         } catch (\Exception $e) {
             // Socket server unreachable is not critical — notifications still work via API polling
             Log::debug('Failed to push notification to socket server: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Push a custom real-time socket event to a user without creating a DB notification.
+     * Useful for triggering UI refreshes when data changes (e.g., invitation updates).
+     *
+     * @param int $userId The target user ID
+     * @param string $event The event name to emit
+     * @param array $data Event payload data
+     */
+    public function pushSocketEvent(int $userId, string $event, array $data): void
+    {
+        if (!$this->socketHost) {
+            return;
+        }
+
+        try {
+            Http::timeout(1)->post($this->socketHost . '/event', [
+                'userId' => (string) $userId,
+                'event' => $event,
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            Log::debug('Failed to push socket event: ' . $e->getMessage());
         }
     }
 }

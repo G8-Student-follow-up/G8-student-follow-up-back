@@ -104,7 +104,7 @@ function emitToUser(userId, event, data) {
  * Body: { userId, notification: { id, type, title, message, ... } }
  */
 app.post("/emit", (req, res) => {
-    const { userId, notification } = req.body;
+    const { userId, notification, eventType } = req.body;
 
     if (!userId || !notification) {
         return res.status(400).json({ error: "Missing userId or notification" });
@@ -117,6 +117,29 @@ app.post("/emit", (req, res) => {
         emitToUser(userId, "invitation-received", notification);
     }
 
+    // Allow custom event type to be emitted alongside the notification
+    if (eventType) {
+        emitToUser(userId, eventType, notification);
+    }
+
+    res.json({ sent: true });
+});
+
+/**
+ * HTTP endpoint for the Laravel backend to push a custom real-time event
+ * to a specific user without creating a notification record.
+ *
+ * POST /event
+ * Body: { userId, event, data }
+ */
+app.post("/event", (req, res) => {
+    const { userId, event, data } = req.body;
+
+    if (!userId || !event) {
+        return res.status(400).json({ error: "Missing userId or event" });
+    }
+
+    emitToUser(userId, event, data || {});
     res.json({ sent: true });
 });
 

@@ -211,6 +211,22 @@ class WorkspaceController extends Controller
 
         $this->clearInvitationNotifications($invitation);
 
+        $acceptedByUser = $request->user('sanctum') ? $request->user('sanctum')->name : 'Someone';
+        $workspaceName = $invitation->workspace->name;
+
+        $this->notificationService->pushSocketEvent(
+            userId: (int) $invitation->invited_by,
+            event: 'invitation-updated',
+            data: [
+                'kind' => 'workspace',
+                'workspace_id' => $invitation->workspace_id,
+                'invitation_id' => $invitation->id,
+                'action' => 'accepted',
+                'user_name' => $acceptedByUser,
+                'message' => "{$acceptedByUser} accepted your invitation to \"{$workspaceName}\"",
+            ]
+        );
+
         return response()->json([
             'message' => 'Invitation accepted successfully',
             'workspace' => $invitation->workspace,
@@ -231,6 +247,22 @@ class WorkspaceController extends Controller
         $invitation->decline();
 
         $this->clearInvitationNotifications($invitation);
+
+        $declinedByUser = $request->user('sanctum') ? $request->user('sanctum')->name : 'Someone';
+        $workspaceName = $invitation->workspace->name;
+
+        $this->notificationService->pushSocketEvent(
+            userId: (int) $invitation->invited_by,
+            event: 'invitation-updated',
+            data: [
+                'kind' => 'workspace',
+                'workspace_id' => $invitation->workspace_id,
+                'invitation_id' => $invitation->id,
+                'action' => 'declined',
+                'user_name' => $declinedByUser,
+                'message' => "{$declinedByUser} declined your invitation to \"{$workspaceName}\"",
+            ]
+        );
 
         return response()->json(['message' => 'Invitation declined']);
     }

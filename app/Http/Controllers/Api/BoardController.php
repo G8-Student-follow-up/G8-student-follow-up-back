@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Board;
 use App\Models\BoardInvitation;
 use App\Models\BoardMember;
+use App\Models\Notification;
 use App\Models\User;
 use App\Mail\BoardInvitationMail;
 use App\Http\Resources\CommentResource;
@@ -195,11 +196,14 @@ class BoardController extends Controller
             ]
         );
 
-        // If invitation already existed and was declined, reset it
-        if ($invitation->wasRecentlyCreated === false && $invitation->status === 'declined') {
+        // If an invitation row already existed and isn't currently pending
+        // (declined, accepted-but-since-removed, or expired), reset it to a
+        // fresh pending invite with a new token so any old link can't be reused.
+        if (!$invitation->wasRecentlyCreated && $invitation->status !== 'pending') {
             $invitation->update([
                 'invited_by' => $request->user()->id,
                 'status' => 'pending',
+                'token' => Str::random(64),
             ]);
         }
 
@@ -277,6 +281,24 @@ class BoardController extends Controller
 
         $invitation->load('board');
 
+        $this->clearInvitationNotifications($invitation);
+
+        $acceptedByUser = $request->user('sanctum') ? $request->user('sanctum')->name : 'Someone';
+        $boardTitle = $invitation->board->title;
+
+        $this->notificationService->pushSocketEvent(
+            userId: (int) $invitation->invited_by,
+            event: 'invitation-updated',
+            data: [
+                'kind' => 'board',
+                'board_id' => $invitation->board_id,
+                'invitation_id' => $invitation->id,
+                'action' => 'accepted',
+                'user_name' => $acceptedByUser,
+                'message' => "{$acceptedByUser} accepted your invitation to board \"{$boardTitle}\"",
+            ]
+        );
+
         return response()->json([
             'message' => 'Invitation accepted successfully',
             'board' => $invitation->board,
@@ -296,6 +318,24 @@ class BoardController extends Controller
 
         $invitation->decline();
 
+        $this->clearInvitationNotifications($invitation);
+
+        $declinedByUser = $request->user('sanctum') ? $request->user('sanctum')->name : 'Someone';
+        $boardTitle = $invitation->board->title;
+
+        $this->notificationService->pushSocketEvent(
+            userId: (int) $invitation->invited_by,
+            event: 'invitation-updated',
+            data: [
+                'kind' => 'board',
+                'board_id' => $invitation->board_id,
+                'invitation_id' => $invitation->id,
+                'action' => 'declined',
+                'user_name' => $declinedByUser,
+                'message' => "{$declinedByUser} declined your invitation to board \"{$boardTitle}\"",
+            ]
+        );
+
         return response()->json(['message' => 'Invitation declined']);
     }
 
@@ -313,6 +353,20 @@ class BoardController extends Controller
         }
 
         return response()->json(null, 204);
+    }
+
+    private function clearInvitationNotifications(BoardInvitation $invitation): void
+    {
+        Notification::forUser($invitation->user_id)
+            ->where('type', 'invite')
+            ->where('is_read', false)
+            ->get()
+            ->each(function ($notif) use ($invitation) {
+                $notifData = $notif->data ?? [];
+                if (isset($notifData['board_id']) && (int)$notifData['board_id'] === (int)$invitation->board_id) {
+                    $notif->markAsRead();
+                }
+            });
     }
 
     private function verifyInvitationAccess(Request $request, BoardInvitation $invitation): ?\Illuminate\Http\JsonResponse
